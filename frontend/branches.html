@@ -9,74 +9,118 @@
 <body>
   <nav id="nav"></nav>
   <main>
-    <div class="card">
-      <h1>Branches</h1>
-      <div id="msg" class="msg"></div>
-      <div id="loading" class="loading">Loading...</div>
-      <table>
-        <thead><tr><th>Name</th><th>Address</th><th>Opens</th><th>Closes</th><th></th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
+    <h1>Branches</h1>
+    <div id="msg" class="msg"></div>
+    <p id="loading" class="loading">Loading...</p>
+
+    <div class="card" id="formCard" style="display:none">
+      <h2 id="formTitle">Add branch</h2>
+      <div class="row">
+        <div><label for="name">Name</label><input id="name" required></div>
+        <div><label for="address">Address</label><input id="address" required></div>
+        <div><label for="open_time">Opens</label><input id="open_time" type="time" value="09:00"></div>
+        <div><label for="close_time">Closes</label><input id="close_time" type="time" value="21:00"></div>
+      </div>
+      <p>
+        <button id="saveBtn">Save</button>
+        <button id="cancelBtn" class="secondary" style="display:none">Cancel edit</button>
+      </p>
     </div>
 
     <div class="card">
-      <h2 id="formTitle">Add a branch</h2>
-      <input type="hidden" id="editId">
-      <div class="row">
-        <div><label for="name">Name</label><input id="name"></div>
-        <div><label for="address">Address</label><input id="address"></div>
-        <div><label for="open_time">Opens (HH:MM)</label><input id="open_time" value="09:00"></div>
-        <div><label for="close_time">Closes (HH:MM)</label><input id="close_time" value="21:00"></div>
-      </div>
-      <p><button id="saveBtn">Save</button> <button id="cancelBtn" class="secondary">Cancel</button></p>
+      <table>
+        <thead><tr><th>Name</th><th>Address</th><th>Opens</th><th>Closes</th><th id="actionsHead"></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
     </div>
   </main>
 
   <script src="/js/api.js"></script>
   <script src="/js/nav.js"></script>
   <script>
-    requireLogin(); renderNav();
+    requireLogin();
     const $ = (id) => document.getElementById(id);
-    let branches = [];
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const hhmm = (t) => String(t ?? '').slice(0, 5);   // "09:00:00" -> "09:00"
+    const isAdmin = getUser()?.role === 'admin';
+    let editingId = null;
+    let byId = {};
+
+    if (isAdmin) $('formCard').style.display = '';
+    else $('actionsHead').style.display = 'none';
 
     async function load() {
-      setLoading(true); clearMsg();
+      setLoading(true);
       try {
-        branches = await api('GET', '/branches');
-        $('rows').innerHTML = branches.map((b) => `
-          <tr><td>${b.name}</td><td>${b.address}</td><td>${b.open_time}</td><td>${b.close_time}</td>
-          <td><button onclick="edit(${b.id})">Edit</button> <button class="danger" onclick="del(${b.id})">Delete</button></td></tr>`).join('');
-      } catch (e) { showMsg(e.message); }
-      finally { setLoading(false); }
-    }
-
-    function edit(id) {
-      const b = branches.find((x) => x.id === id);
-      $('editId').value = id; $('formTitle').textContent = 'Edit branch #' + id;
-      ['name', 'address', 'open_time', 'close_time'].forEach((f) => ($(f).value = b[f]));
+        const rows = await api('GET', '/branches');
+        byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+        $('rows').innerHTML = rows.length
+          ? rows.map((r) => `<tr>
+              <td>${esc(r.name)}</td><td>${esc(r.address)}</td>
+              <td>${esc(hhmm(r.open_time))}</td><td>${esc(hhmm(r.close_time))}</td>
+              ${isAdmin ? `<td>
+                <button data-edit="${r.id}">Edit</button>
+                <button class="danger" data-del="${r.id}">Delete</button></td>` : ''}
+            </tr>`).join('')
+          : '<tr><td colspan="5">No branches yet.</td></tr>';
+      } catch (e) {
+        showMsg(e.message, 'error', e.errors);
+      } finally {
+        setLoading(false);
+      }
     }
 
     function resetForm() {
-      $('editId').value = ''; $('formTitle').textContent = 'Add a branch';
-      ['name', 'address'].forEach((f) => ($(f).value = ''));
+      editingId = null;
+      $('formTitle').textContent = 'Add branch';
+      $('name').value = ''; $('address').value = '';
       $('open_time').value = '09:00'; $('close_time').value = '21:00';
+      $('cancelBtn').style.display = 'none';
     }
 
     $('saveBtn').addEventListener('click', async () => {
       clearMsg();
-      const body = { name: $('name').value, address: $('address').value, open_time: $('open_time').value, close_time: $('close_time').value };
-      const id = $('editId').value;
+      const body = {
+        name: $('name').value, address: $('address').value,
+        open_time: $('open_time').value, close_time: $('close_time').value,
+      };
       try {
-        if (id) await api('PUT', '/branches/' + id, body); else await api('POST', '/branches', body);
-        showMsg('Saved!', 'success'); resetForm(); load();
-      } catch (e) { showMsg(e.message, 'error', e.errors); }
+        await api(editingId ? 'PUT' : 'POST', editingId ? '/branches/' + editingId : '/branches', body);
+        const wasEdit = !!editingId;
+        resetForm();
+        await load();
+        showMsg(wasEdit ? 'Branch updated' : 'Branch created', 'success');
+      } catch (e) {
+        showMsg(e.message, 'error', e.errors);
+      }
     });
-    $('cancelBtn').addEventListener('click', resetForm);
 
-    async function del(id) {
-      if (!confirm('Delete this branch?')) return;
-      try { await api('DELETE', '/branches/' + id); load(); } catch (e) { showMsg(e.message); }
-    }
+    $('cancelBtn').addEventListener('click', () => { resetForm(); clearMsg(); });
+
+    $('rows').addEventListener('click', async (ev) => {
+      const editId = ev.target.dataset.edit;
+      const delId = ev.target.dataset.del;
+      if (editId) {
+        const r = byId[editId];
+        editingId = r.id;
+        $('formTitle').textContent = 'Edit branch #' + r.id;
+        $('name').value = r.name; $('address').value = r.address;
+        $('open_time').value = hhmm(r.open_time); $('close_time').value = hhmm(r.close_time);
+        $('cancelBtn').style.display = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      if (delId && confirm('Delete this branch?')) {
+        clearMsg();
+        try {
+          await api('DELETE', '/branches/' + delId);
+          await load();
+          showMsg('Branch deleted', 'success');
+        } catch (e) {
+          showMsg(e.message, 'error', e.errors);
+        }
+      }
+    });
+
     load();
   </script>
 </body>
