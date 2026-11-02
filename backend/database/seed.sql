@@ -1,5 +1,6 @@
 -- Sample data. Users are added by setup.js because passwords must be hashed.
 -- Some rows are on purpose "unmatched" so the LEFT / RIGHT / FULL OUTER join demos show something.
+USE spa_booking;
 INSERT INTO roles (name) VALUES ('admin'),('receptionist'),('therapist'),('customer');
 
 INSERT INTO branches (name, address, open_time, close_time) VALUES

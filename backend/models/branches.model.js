@@ -14,22 +14,34 @@ exports.validate = (d) => {
   return errors;
 };
 
-exports.findAll = () => db.prepare('SELECT * FROM branches WHERE is_active = 1 ORDER BY name').all();
-
-exports.findById = (id) => db.prepare('SELECT * FROM branches WHERE id = ?').get(id);
-
-exports.create = (d) => {
-  const info = db
-    .prepare('INSERT INTO branches (name, address, open_time, close_time) VALUES (?, ?, ?, ?)')
-    .run(d.name, d.address, d.open_time, d.close_time);
-  return exports.findById(info.lastInsertRowid);
+exports.findAll = async () => {
+  const [rows] = await db.query('SELECT * FROM branches WHERE is_active = 1 ORDER BY name');
+  return rows;
 };
 
-exports.update = (id, d) => {
-  db.prepare('UPDATE branches SET name = ?, address = ?, open_time = ?, close_time = ? WHERE id = ?')
-    .run(d.name, d.address, d.open_time, d.close_time, id);
+exports.findById = async (id) => {
+  const [rows] = await db.query('SELECT * FROM branches WHERE id = ?', [id]);
+  return rows[0];
+};
+
+exports.create = async (d) => {
+  const [result] = await db.query(
+    'INSERT INTO branches (name, address, open_time, close_time) VALUES (?, ?, ?, ?)',
+    [d.name, d.address, d.open_time, d.close_time]
+  );
+  return exports.findById(result.insertId);
+};
+
+exports.update = async (id, d) => {
+  await db.query(
+    'UPDATE branches SET name = ?, address = ?, open_time = ?, close_time = ? WHERE id = ?',
+    [d.name, d.address, d.open_time, d.close_time, id]
+  );
   return exports.findById(id);
 };
 
 // Soft delete: we never erase the row, we just hide it (bookings may still point to it)
-exports.remove = (id) => db.prepare('UPDATE branches SET is_active = 0 WHERE id = ?').run(id).changes;
+exports.remove = async (id) => {
+  const [result] = await db.query('UPDATE branches SET is_active = 0 WHERE id = ?', [id]);
+  return result.affectedRows;
+};
