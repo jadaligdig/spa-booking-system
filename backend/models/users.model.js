@@ -1,5 +1,3 @@
-// MODEL = talks to the database. No req/res here.
-// Member A: add findAll, findById, create, update, deactivate (and the INNER JOIN report) in this file.
 const db = require('../config/db');
 
 exports.findByEmail = async (email) => {
