@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "SPA Booking System - SIA (Node.js MVC REST API + plain HTML/JS frontend)",
   "main": "app.js",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "setup": "node --env-file=.env database/setup.js",
     "start": "node --env-file=.env app.js",
@@ -12,7 +14,9 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
+    "dotenv": "^18.0.9",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.24.6"
   }
 }
