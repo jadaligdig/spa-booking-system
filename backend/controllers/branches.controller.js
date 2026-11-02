@@ -10,13 +10,12 @@ const clean = (b = {}) => ({
   close_time: String(b.close_time ?? '21:00').trim(),
 });
 
-// Catches errors from async handlers so a failed query returns a 500 instead of hanging
-const wrap = (fn) => async (req, res) => {
+// Passes any error to middleware/errorHandler.js, which picks the right status code
+const wrap = (fn) => async (req, res, next) => {
   try {
     await fn(req, res);
   } catch (err) {
-    console.error(err);
-    return fail(res, 500, 'Server error');
+    next(err);
   }
 };
 
