@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Branches</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav id="nav"></nav>
+  <main>
+    <div class="card">
+      <h1>Branches</h1>
+      <div id="msg" class="msg"></div>
+      <div id="loading" class="loading">Loading...</div>
+      <table>
+        <thead><tr><th>Name</th><th>Address</th><th>Opens</th><th>Closes</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2 id="formTitle">Add a branch</h2>
+      <input type="hidden" id="editId">
+      <div class="row">
+        <div><label for="name">Name</label><input id="name"></div>
+        <div><label for="address">Address</label><input id="address"></div>
+        <div><label for="open_time">Opens (HH:MM)</label><input id="open_time" value="09:00"></div>
+        <div><label for="close_time">Closes (HH:MM)</label><input id="close_time" value="21:00"></div>
+      </div>
+      <p><button id="saveBtn">Save</button> <button id="cancelBtn" class="secondary">Cancel</button></p>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    requireLogin(); renderNav();
+    const $ = (id) => document.getElementById(id);
+    let branches = [];
+
+    async function load() {
+      setLoading(true); clearMsg();
+      try {
+        branches = await api('GET', '/branches');
+        $('rows').innerHTML = branches.map((b) => `
+          <tr><td>${b.name}</td><td>${b.address}</td><td>${b.open_time}</td><td>${b.close_time}</td>
+          <td><button onclick="edit(${b.id})">Edit</button> <button class="danger" onclick="del(${b.id})">Delete</button></td></tr>`).join('');
+      } catch (e) { showMsg(e.message); }
+      finally { setLoading(false); }
+    }
+
+    function edit(id) {
+      const b = branches.find((x) => x.id === id);
+      $('editId').value = id; $('formTitle').textContent = 'Edit branch #' + id;
+      ['name', 'address', 'open_time', 'close_time'].forEach((f) => ($(f).value = b[f]));
+    }
+
+    function resetForm() {
+      $('editId').value = ''; $('formTitle').textContent = 'Add a branch';
+      ['name', 'address'].forEach((f) => ($(f).value = ''));
+      $('open_time').value = '09:00'; $('close_time').value = '21:00';
+    }
+
+    $('saveBtn').addEventListener('click', async () => {
+      clearMsg();
+      const body = { name: $('name').value, address: $('address').value, open_time: $('open_time').value, close_time: $('close_time').value };
+      const id = $('editId').value;
+      try {
+        if (id) await api('PUT', '/branches/' + id, body); else await api('POST', '/branches', body);
+        showMsg('Saved!', 'success'); resetForm(); load();
+      } catch (e) { showMsg(e.message, 'error', e.errors); }
+    });
+    $('cancelBtn').addEventListener('click', resetForm);
+
+    async function del(id) {
+      if (!confirm('Delete this branch?')) return;
+      try { await api('DELETE', '/branches/' + id); load(); } catch (e) { showMsg(e.message); }
+    }
+    load();
+  </script>
+</body>
+</html>

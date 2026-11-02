@@ -1,0 +1,95 @@
+# SPA Booking System (SIA, Independent Track)
+
+A web system for booking spa treatments. A booking is only accepted if the therapist, the room and the working hours are all free, including the room cleaning time after each treatment.
+
+**Major feature:** automatic scheduling conflict detection across several resources (therapist + room + schedule + cleanup buffer) with a booking status workflow, automatic late/no-show handling, and cancellation fees.
+
+Stack: Node.js + Express (MVC REST API), SQLite (built into Node), plain HTML/JS frontend, JWT login.
+
+## Group roster and ownership matrix
+
+| Member | GitHub username | Tables | Endpoints / screens | Join report and join type | Feature role |
+|---|---|---|---|---|---|
+| A: Core | | roles, users, customers | `/api/auth`, `/api/users`, `/api/customers`; login, customers.html | users + roles: INNER | Core / security |
+| B: Master data | | branches, service_categories, services | `/api/branches`, `/api/categories`, `/api/services`; branches.html, services.html | categories + services: LEFT | Supports the rules (durations, cleanup time) |
+| C: Transactions | | bookings, payments | `/api/bookings`, `/api/payments`; bookings.html | booking details: INNER | Calls the conflict check |
+| D: Unique feature (rules) | | therapists, therapist_schedules, rooms | `/api/therapists`, `/api/rooms`, `/api/availability`; availability.html | therapist utilization: LEFT | Conflict detection |
+| E: Unique feature (workflow) + Audit | | booking_status_history, alerts, audit_logs | `/api/workflow`, `/api/alerts`, `/api/audit`; alerts.html | bookings + alerts: FULL OUTER | Status workflow, alerts, auto no-show |
+| F: Reports | | reviews, promotions | `/api/reviews`, `/api/promotions`, `/api/reports`; reports.html | service popularity: RIGHT | Dashboard / reporting |
+
+Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/ONE_DAY_GUIDE.md`.
+
+## How to run
+
+Requires **Node.js 22.13 or newer** (24 LTS recommended).
+
+```
+cd backend
+npm install
+copy .env.example .env        # Mac/Linux: cp .env.example .env
+npm run setup                 # builds the database from schema.sql + seed.sql (wipes old data)
+npm run dev                   # http://localhost:3000
+```
+
+Demo logins: `admin@spa.test / admin123`, `reception@spa.test / reception123`, `customer@spa.test / customer123`.
+Node may print an "ExperimentalWarning" about SQLite. That is harmless.
+
+## Folder structure
+
+```
+spa-booking-sia/
+├─ README.md
+├─ .gitignore
+├─ docs/
+│  ├─ ONE_DAY_GUIDE.md        step-by-step plan
+│  ├─ SLICE_CARDS.md          what each member builds
+│  └─ er-diagram.png          (add before the deadline)
+├─ backend/
+│  ├─ app.js                  starts the server
+│  ├─ package.json
+│  ├─ .env.example
+│  ├─ config/db.js            database connection
+│  ├─ database/               schema.sql, seed.sql, setup.js
+│  ├─ middleware/             auth.js (401/403), errorHandler.js (404/500)
+│  ├─ utils/                  respond.js (JSON format), audit.js
+│  ├─ models/                 *.model.js       SQL + validation
+│  ├─ controllers/            *.controller.js  request/response + status codes
+│  └─ routes/                 *.routes.js      URL → controller (auto-loaded)
+└─ frontend/
+   ├─ index.html              login
+   ├─ branches.html ...       one screen per slice
+   ├─ css/style.css
+   └─ js/api.js, nav.js       shared fetch helper + menu
+```
+
+## API response format
+
+```json
+{ "success": true,  "message": "Branch created", "data": { } }
+{ "success": false, "message": "Validation failed", "errors": ["name must be at least 2 characters"] }
+```
+
+Status codes: 200 OK, 201 Created, 400 validation/bad input, 401 not logged in, 403 not allowed, 404 not found, 409 booking conflict, 500 server error.
+
+## Endpoints
+
+Provided in the starter: `POST /api/auth/login`, `GET /api/auth/me`, and full CRUD on `/api/branches` (GET list, GET by id, POST, PUT, DELETE).
+Each member adds their endpoints here as they finish them:
+
+| Method | URL | Owner | Notes |
+|---|---|---|---|
+| GET | /api/users/report/with-roles | A | INNER JOIN |
+| GET/POST/PUT/DELETE | /api/customers | A | |
+| GET/POST/PUT/DELETE | /api/services | B | |
+| GET | /api/services/report/by-category | B | LEFT JOIN |
+| GET/POST/PUT/DELETE | /api/bookings | C | create returns 409 on conflict |
+| GET | /api/bookings/report/details | C | INNER JOIN |
+| GET/POST/PUT/DELETE | /api/therapists | D | |
+| GET | /api/availability | D | free slots |
+| GET | /api/therapists/report/utilization | D | LEFT JOIN |
+| PATCH | /api/workflow/bookings/:id/status | E | allowed transitions only |
+| GET/POST/PATCH/DELETE | /api/alerts | E | |
+| GET | /api/alerts/report/booking-alerts | E | FULL OUTER JOIN |
+| GET/POST/PUT/DELETE | /api/promotions | F | |
+| GET | /api/reports/service-popularity | F | RIGHT JOIN |
+| GET | /api/reports/dashboard | F | |

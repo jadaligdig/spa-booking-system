@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPA Booking - Login</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main style="max-width:380px">
+    <div class="card">
+      <h1>SPA Booking System</h1>
+      <div id="msg" class="msg"></div>
+      <label for="email">Email</label>
+      <input id="email" type="email" value="admin@spa.test">
+      <label for="password">Password</label>
+      <input id="password" type="password" value="admin123">
+      <p><button id="loginBtn">Log in</button></p>
+      <div id="loading" class="loading">Logging in...</div>
+    </div>
+  </main>
+  <script src="/js/api.js"></script>
+  <script>
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      clearMsg(); setLoading(true);
+      try {
+        const data = await api('POST', '/auth/login', {
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+        });
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        location.href = '/branches.html';
+      } catch (e) { showMsg(e.message); }
+      finally { setLoading(false); }
+    });
+  </script>
+</body>
+</html>
