@@ -10,12 +10,12 @@ Stack: Node.js + Express (MVC REST API), SQLite (built into Node), plain HTML/JS
 
 | Member | GitHub username | Tables | Endpoints / screens | Join report and join type | Feature role |
 |---|---|---|---|---|---|
-| A: |Joyce_Moycee05| Core | | roles, users, customers | `/api/auth`, `/api/users`, `/api/customers`; login, customers.html | users + roles: INNER | Core / security |
-| B:|jadaligdig| Master data | | branches, service_categories, services | `/api/branches`, `/api/categories`, `/api/services`; branches.html, services.html | categories + services: LEFT | Supports the rules (durations, cleanup time) |
-| C: |marie-chan| Transactions | | bookings, payments | `/api/bookings`, `/api/payments`; bookings.html | booking details: INNER | Calls the conflict check |
-| D: |camy_ky| Unique feature (rules) | | therapists, therapist_schedules, rooms | `/api/therapists`, `/api/rooms`, `/api/availability`; availability.html | therapist utilization: LEFT | Conflict detection |
-| E: |jerrydevvv| Unique feature (workflow) + Audit | | booking_status_history, alerts, audit_logs | `/api/workflow`, `/api/alerts`, `/api/audit`; alerts.html | bookings + alerts: FULL OUTER | Status workflow, alerts, auto no-show |
-| F: |Silthia| Reports | | reviews, promotions | `/api/reviews`, `/api/promotions`, `/api/reports`; reports.html | service popularity: RIGHT | Dashboard / reporting |
+| A: |Joyce_Moycee05| Core | roles, users, customers | `/api/auth`, `/api/users`, `/api/customers`; login, customers.html | users + roles: INNER | Core / security |
+| B:|jadaligdig| Master data | branches, service_categories, services | `/api/branches`, `/api/categories`, `/api/services`; branches.html, services.html | categories + services: LEFT | Supports the rules (durations, cleanup time) |
+| C: |marie-chan| Transactions | bookings, payments | `/api/bookings`, `/api/payments`; bookings.html | booking details: INNER | Calls the conflict check |
+| D: |camy_ky| Unique feature (rules) | therapists, therapist_schedules, rooms | `/api/therapists`, `/api/rooms`, `/api/availability`; availability.html | therapist utilization: LEFT | Conflict detection |
+| E: |jerrydevvv| Unique feature (workflow) + Audit | booking_status_history, alerts, audit_logs | `/api/workflow`, `/api/alerts`, `/api/audit`; alerts.html | bookings + alerts: FULL OUTER | Status workflow, alerts, auto no-show |
+| F: |Silthia| Reports | reviews, promotions | `/api/reviews`, `/api/promotions`, `/api/reports`; reports.html | service popularity: RIGHT | Dashboard / reporting |
 
 Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/ONE_DAY_GUIDE.md`.
 
