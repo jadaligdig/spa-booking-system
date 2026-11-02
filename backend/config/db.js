@@ -1,10 +1,12 @@
-// One shared connection to the SQLite database file.
-// node:sqlite is built into Node 22.13+ so there is nothing extra to install.
-const { DatabaseSync } = require('node:sqlite');
-const path = require('path');
+const mysql = require('mysql2/promise');
 
-const file = path.join(__dirname, '..', 'database', process.env.DB_FILE || 'spa.db');
-const db = new DatabaseSync(file);
-db.exec('PRAGMA foreign_keys = ON'); // make FOREIGN KEY rules actually enforced
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'spa_booking',
+  waitForConnections: true,
+  connectionLimit: 10
+});
 
-module.exports = db;
+module.exports = pool;
