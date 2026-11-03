@@ -61,15 +61,19 @@
     async function load() {
       setLoading(true);
       try {
-        const [cats, services] = await Promise.all([api('GET', '/categories'), api('GET', '/services')]);
+        const [cats, services, report] = await Promise.all([
+          api('GET', '/categories'),
+          api('GET', '/services'),
+          api('GET', '/services/report/by-category'),
+       ]);
 
         const current = $('category_id').value;
         $('category_id').innerHTML = cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
         if (current) $('category_id').value = current;
 
-        // LEFT JOIN result: categories with 0 services still show up
-        $('catRows').innerHTML = cats.map((c) =>
-          `<tr><td>${esc(c.name)}</td><td>${esc(c.description)}</td><td>${c.service_count}</td></tr>`).join('');
+        // LEFT JOIN report: categories with 0 services still show up
+        $('catRows').innerHTML = report.map((r) =>
+          `<tr><td>${esc(r.category)}</td><td>${esc(r.description)}</td><td>${r.service_count}</td></tr>`).join('');
 
         byId = Object.fromEntries(services.map((s) => [s.id, s]));
         $('rows').innerHTML = services.length
