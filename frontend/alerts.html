@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Alerts & Audit</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <nav id="nav"></nav>
+
+    <main>
+        <h1>Alerts & Audit</h1>
+
+        <div id="msg" class="msg"></div>
+        <p id="loading" class="loading">Loading...</p>
+
+        <div class="card">
+            <h2>Create Manual Alert</h2>
+
+            <div class="row">
+                <div>
+                    <label for="booking_id">Booking ID (optional)</label>
+                    <input id="booking_id" type="number" min="1">
+                </div>
+
+                <div>
+                    <label for="type">Alert Type</label>
+                    <input id="type" required>
+                </div>
+
+                <div>
+                    <label for="message">Message</label>
+                    <input id="message" required>
+                </div>
+            </div>
+
+            <p>
+                <button id="createBtn">Create Alert</button>
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Alerts List</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Booking ID</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Booking Status</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="alertRows"></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Booking–Alert Report (FULL OUTER JOIN)</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Booking Status</th>
+                        <th>Alert ID</th>
+                        <th>Alert Type</th>
+                        <th>Alert Message</th>
+                        <th>Resolved</th>
+                        <th>Alert Created</th>
+                    </tr>
+                </thead>
+                <tbody id="reportRows"></tbody>
+            </table>
+        </div>
+
+        <div class="card" id="auditCard">
+            <h2>Audit Logs (Admin Only)</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User ID</th>
+                        <th>Action</th>
+                        <th>Table</th>
+                        <th>Record ID</th>
+                        <th>Details</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="auditRows"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/nav.js"></script>
+
+    <script>
+        requireLogin();
+
+        const $ = (id) => document.getElementById(id);
+
+        const esc = (value) =>
+            String(value ?? '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[c]));
+
+        const user = getUser();
+        const isAdmin = user?.role === 'admin';
+
+        renderNav();
+
+        if (!isAdmin) {
+            $('auditCard').style.display = 'none';
+        }
+
+        async function loadAlerts() {
+            const rows = await api('GET', '/alerts');
+
+            $('alertRows').innerHTML = rows.length
+                ? rows.map((a) => `
+          <tr>
+            <td>${esc(a.id)}</td>
+            <td>${esc(a.booking_id)}</td>
+            <td>${esc(a.type)}</td>
+            <td>${esc(a.message)}</td>
+            <td>${esc(a.booking_status)}</td>
+            <td>${Number(a.is_resolved) ? 'Resolved' : 'Unresolved'}</td>
+            <td>${esc(a.created_at)}</td>
+            <td>
+              ${!Number(a.is_resolved)
+                        ? `<button data-resolve="${a.id}">Resolve</button>`
+                        : ''}
+              <button class="danger" data-delete="${a.id}">Delete</button>
+            </td>
+          </tr>
+        `).join('')
+                : '<tr><td colspan="8">No alerts found.</td></tr>';
+        }
+
+        async function loadReport() {
+            const rows = await api('GET', '/alerts/report/booking-alerts');
+
+            $('reportRows').innerHTML = rows.length
+                ? rows.map((r) => `
+          <tr>
+            <td>${esc(r.booking_id)}</td>
+            <td>${esc(r.booking_status)}</td>
+            <td>${esc(r.alert_id)}</td>
+            <td>${esc(r.alert_type)}</td>
+            <td>${esc(r.alert_message)}</td>
+            <td>${r.is_resolved == null ? '' : Number(r.is_resolved) ? 'Yes' : 'No'}</td>
+            <td>${esc(r.alert_created_at)}</td>
+          </tr>
+        `).join('')
+                : '<tr><td colspan="7">No report records found.</td></tr>';
+        }
+
+        async function loadAudit() {
+            if (!isAdmin) return;
+
+            const rows = await api('GET', '/audit');
+
+            $('auditRows').innerHTML = rows.length
+                ? rows.map((a) => `
+          <tr>
+            <td>${esc(a.id)}</td>
+            <td>${esc(a.user_id)}</td>
+            <td>${esc(a.action)}</td>
+            <td>${esc(a.table_name)}</td>
+            <td>${esc(a.record_id)}</td>
+            <td>${esc(a.details)}</td>
+            <td>${esc(a.created_at)}</td>
+          </tr>
+        `).join('')
+                : '<tr><td colspan="7">No audit logs found.</td></tr>';
+        }
+
+        async function loadPage() {
+            setLoading(true);
+            clearMsg();
+
+            try {
+                const names = ['Alerts', 'Booking Report', 'Audit Logs'];
+
+                const results = await Promise.allSettled([
+                    loadAlerts(),
+                    loadReport(),
+                    loadAudit()
+                ]);
+
+                const errors = results
+                    .map((result, index) =>
+                        result.status === 'rejected'
+                            ? `${names[index]}: ${result.reason.message}`
+                            : null
+                    )
+                    .filter(Boolean);
+
+                if (errors.length) {
+                    showMsg(errors.join(' | '), 'error');
+                }
+
+            } catch (error) {
+                showMsg(error.message, 'error', error.errors);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        $('createBtn').addEventListener('click', async () => {
+            clearMsg();
+
+            const type = $('type').value.trim();
+            const message = $('message').value.trim();
+            const bookingValue = $('booking_id').value;
+
+            if (!type || !message) {
+                showMsg('Type and message are required', 'error');
+                return;
+            }
+
+            try {
+                await api('POST', '/alerts', {
+                    booking_id: bookingValue ? Number(bookingValue) : null,
+                    type,
+                    message
+                });
+
+                $('booking_id').value = '';
+                $('type').value = '';
+                $('message').value = '';
+
+                await loadPage();
+                showMsg('Alert created successfully', 'success');
+            } catch (error) {
+                showMsg(error.message, 'error', error.errors);
+            }
+        });
+
+        $('alertRows').addEventListener('click', async (event) => {
+            const resolveId = event.target.dataset.resolve;
+            const deleteId = event.target.dataset.delete;
+
+            if (resolveId) {
+                if (!confirm('Resolve this alert?')) return;
+
+                try {
+                    await api('PATCH', `/alerts/${resolveId}/resolve`);
+                    await loadPage();
+                    showMsg('Alert resolved successfully', 'success');
+                } catch (error) {
+                    showMsg(error.message, 'error', error.errors);
+                }
+            }
+
+            if (deleteId) {
+                if (!confirm('Delete this alert?')) return;
+
+                try {
+                    await api('DELETE', `/alerts/${deleteId}`);
+                    await loadPage();
+                    showMsg('Alert deleted successfully', 'success');
+                } catch (error) {
+                    showMsg(error.message, 'error', error.errors);
+                }
+            }
+        });
+
+        loadPage();
+    </script>
+</body>
+
+</html>
