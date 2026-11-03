@@ -54,13 +54,13 @@ exports.remove = async (id) => {
   return result.affectedRows;
 };
 
-// LEFT JOIN report: every category, even ones with no services (count = 0)
+/// LEFT JOIN report: every category, even ones with no services (count = 0)
 exports.reportByCategory = async () => {
   const [rows] = await db.query(
-    `SELECT c.id, c.name AS category, COUNT(s.id) AS service_count
+    `SELECT c.id, c.name AS category, c.description, COUNT(s.id) AS service_count
      FROM service_categories c
      LEFT JOIN services s ON s.category_id = c.id AND s.is_active = 1
-     GROUP BY c.id, c.name
+     GROUP BY c.id, c.name, c.description
      ORDER BY c.name`
   );
   return rows;
