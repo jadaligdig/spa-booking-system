@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Availability</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav id="nav"></nav>
+
+  <main>
+    <div class="card">
+      <h1>Check Availability</h1>
+      <div id="msg" class="msg"></div>
+      <div id="loading" class="loading">Loading...</div>
+
+      <div class="row">
+        <div>
+          <label for="date">Date</label>
+          <input type="date" id="date">
+        </div>
+
+        <div>
+          <label for="branch">Branch</label>
+          <select id="branch"></select>
+        </div>
+
+        <div>
+          <label for="service">Service</label>
+          <select id="service"></select>
+        </div>
+      </div>
+
+      <p>
+        <button id="searchBtn">Find Available Slots</button>
+      </p>
+
+      <h2>Available Slots</h2>
+      <div id="results"></div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+  requireLogin();
+  renderNav();
+
+  const $ = (id) => document.getElementById(id);
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[char]);
+  }
+
+  function setToday() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    $('date').value = year + '-' + month + '-' + day;
+    $('date').min = $('date').value;
+  }
+
+  async function loadOptions() {
+    setLoading(true);
+    clearMsg();
+
+    try {
+      const branches = await api('GET', '/branches');
+      const services = await api('GET', '/availability/services');
+
+      $('branch').innerHTML = branches.map((b) =>
+        '<option value="' + b.id + '">' +
+        escapeHtml(b.name) + '</option>'
+      ).join('');
+
+      $('service').innerHTML = services.map((s) =>
+        '<option value="' + s.id + '">' +
+        escapeHtml(s.name) + ' (' + s.duration_min + ' minutes)</option>'
+      ).join('');
+
+      if (!branches.length || !services.length) {
+        showMsg('No active branches or services found.');
+      }
+    } catch (e) {
+      showMsg(e.message, 'error', e.errors);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function findSlots() {
+    clearMsg();
+    $('results').innerHTML = '';
+
+    const date = $('date').value;
+    const branchId = $('branch').value;
+    const serviceId = $('service').value;
+
+    if (!date || !branchId || !serviceId) {
+      showMsg('Please select a date, branch, and service.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const slots = await api(
+        'GET',
+        '/availability?date=' + encodeURIComponent(date) +
+        '&branch_id=' + encodeURIComponent(branchId) +
+        '&service_id=' + encodeURIComponent(serviceId)
+      );
+
+      if (!slots.length) {
+        $('results').textContent = 'No available slots found for your selection.';
+        return;
+      }
+
+      $('results').innerHTML = '<table><thead><tr>' +
+        '<th>Therapist</th><th>Room</th><th>Start</th><th>End</th>' +
+        '</tr></thead><tbody>' +
+        slots.map((slot) =>
+          '<tr><td>' + escapeHtml(slot.therapist.full_name) +
+          '</td><td>' + escapeHtml(slot.room.name) +
+          '</td><td>' + escapeHtml(slot.start_at) +
+          '</td><td>' + escapeHtml(slot.end_at) +
+          '</td></tr>'
+        ).join('') +
+        '</tbody></table>';
+    } catch (e) {
+      showMsg(e.message, 'error', e.errors);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  $('searchBtn').addEventListener('click', findSlots);
+
+  setToday();
+  loadOptions();
+</script>
+</body>
+</html>
