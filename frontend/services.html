@@ -108,7 +108,7 @@
         category_id: Number($('category_id').value),
         duration_min: Number($('duration_min').value),
         cleanup_min: Number($('cleanup_min').value),
-        price: Number($('price').value),
+        price: $('price').value === '' ? '' : Number($('price').value),
       };
       try {
         await api(editingId ? 'PUT' : 'POST', editingId ? '/services/' + editingId : '/services', body);
