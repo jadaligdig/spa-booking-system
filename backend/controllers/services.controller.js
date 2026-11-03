@@ -7,7 +7,7 @@ const clean = (b = {}) => ({
   category_id: Number(b.category_id),
   duration_min: Number(b.duration_min),
   cleanup_min: Number(b.cleanup_min ?? 0),
-  price: Number(b.price),
+  price: b.price === '' || b.price == null ? NaN : Number(b.price),
 });
 
 const wrap = (fn) => async (req, res) => {
@@ -17,11 +17,14 @@ const wrap = (fn) => async (req, res) => {
     console.error(err);
     if (err.code === 'ER_ROW_IS_REFERENCED_2') return fail(res, 409, 'Cannot delete: it is still in use');
     if (err.code === 'ER_NO_REFERENCED_ROW_2') return fail(res, 400, 'That category does not exist');
+    if (err.code === 'ER_DUP_ENTRY') return fail(res, 409, 'A service with that name already exists');
     return fail(res, 500, 'Server error');
   }
 };
 
 exports.list = wrap(async (req, res) => ok(res, await Service.findAll()));
+
+exports.reportByCategory = wrap(async (req, res) => ok(res, await Service.reportByCategory()));
 
 exports.get = wrap(async (req, res) => {
   const row = await Service.findById(req.params.id);
