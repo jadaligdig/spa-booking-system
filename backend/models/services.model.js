@@ -53,3 +53,15 @@ exports.remove = async (id) => {
   const [result] = await db.query('UPDATE services SET is_active = 0 WHERE id = ?', [id]);
   return result.affectedRows;
 };
+
+// LEFT JOIN report: every category, even ones with no services (count = 0)
+exports.reportByCategory = async () => {
+  const [rows] = await db.query(
+    `SELECT c.id, c.name AS category, COUNT(s.id) AS service_count
+     FROM service_categories c
+     LEFT JOIN services s ON s.category_id = c.id AND s.is_active = 1
+     GROUP BY c.id, c.name
+     ORDER BY c.name`
+  );
+  return rows;
+};
