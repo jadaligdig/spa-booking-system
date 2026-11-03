@@ -1,4 +1,4 @@
-# One-Day Guide: SPA Booking System (SIA, Independent Track)
+SPA Booking System (SIA, Independent Track)
 
 ## Read this first
 
@@ -37,10 +37,11 @@
 
 ## Step 1: Install tools (all 6 members)
 
-1. **Node.js 24 LTS** from nodejs.org (we need 22.13 or newer). Check: open a terminal and run `node --version`.
-2. **Git** from git-scm.com. **VS Code** from code.visualstudio.com.
-3. In VS Code, install the extension **Thunder Client** (for testing the API).
-4. A **GitHub account** each.
+1. **Node.js LTS** from nodejs.org. Check: open a terminal and run `node --version`.
+2. **MySQL Server + MySQL Workbench CE** (the same ones we used in DBMS). During the install you set a **root password**. Write it down, because you need it in your `.env` file in Step 3.
+3. **Git** from git-scm.com (or **GitHub Desktop**). **VS Code** from code.visualstudio.com.
+4. In VS Code, install the extension **Thunder Client** (for testing the API).
+5. A **GitHub account** each.
 
 Set your Git identity (use the SAME email as your GitHub account, or your commits will not count as yours):
 
@@ -67,18 +68,47 @@ git config user.email
 
 ## Step 3: Everyone clones and runs it
 
+Make sure **MySQL Server is running** first (open MySQL Workbench and connect; if it connects, the server is running).
+
+```
+git clone https://github.com/<keeper-username>/<repo-name>.git
+cd <repo-name>/backend
+npm install
+copy .env.example .env        (Mac/Linux: cp .env.example .env)
+```
+
+Open `backend/.env` and set `DB_PASSWORD` to **your own MySQL password** (no quotes, no spaces around `=`). Never commit `.env`.
+
+```
+npm run setup
+npm start
+```
+
+`npm run setup` drops and rebuilds the `spa_booking` database, so only run it when you want a fresh copy of the sample data.
+
+Open **http://localhost:3000/index.html** → log in with `admin@spa.test` / `admin123` → you should see the Branches screen.
+
+Every member has their **own local MySQL database** (`spa_booking`, on their own computer). The schema and sample data live in `schema.sql` and `seed.sql`, so everyone gets the same data by running `npm run setup`. If you change a table, edit `schema.sql`, commit it, tell the team, and everyone re-runs `npm run setup`.
+
+Errors?
+- `npm: command not found` → reinstall Node and reopen the terminal.
+- `Missing JWT_SECRET` → you skipped the `.env` copy.
+- `Access denied for user 'root'` → the `DB_PASSWORD` in your `.env` is wrong.
+- `EADDRINUSE` (port 3000 already in use) → an old server is still running. Press `Ctrl+C` in its terminal, or run `netstat -ano | findstr :3000` and then `taskkill /PID <number> /F`.
+- `Cannot find module 'mysql2'` → run `npm install` inside `backend`.
+
 ```
 git clone https://github.com/<keeper-username>/spa-booking-sia.git
 cd spa-booking-sia/backend
 npm install
 copy .env.example .env        (Mac/Linux: cp .env.example .env)
 npm run setup
-npm run dev
+npm start
 ```
 
 Open **http://localhost:3000** → log in with `admin@spa.test` / `admin123` → you should see the Branches screen.
 
-Every member has their **own local database file** (`spa.db`, not committed). The schema and sample data live in `schema.sql` and `seed.sql`, so everyone gets the same data by running `npm run setup`. If you change a table, edit `schema.sql`, commit it, tell the team, and everyone re-runs `npm run setup`.
+Every member has their **own local MySQL database** (`spa_booking`, on their own computer). The schema and sample data live in `schema.sql` and `seed.sql`, so everyone gets the same data by running `npm run setup`. If you change a table, edit `schema.sql`, commit it, tell the team, and everyone re-runs `npm run setup`.
 
 Errors? `npm: command not found` → reinstall Node and reopen the terminal. `Missing JWT_SECRET` → you skipped the `.env` copy.
 
@@ -124,7 +154,7 @@ Screen (branches.html)  →  fetch('/api/branches')            [frontend/js/api.
    → Middleware  middleware/auth.js             "is there a valid token? (401)  right role? (403)"
    → Controller  controllers/branches.controller.js   "clean the input, call the model, choose the status code"
    → Model       models/branches.model.js       "validate, run SQL"
-   → Database    database/spa.db
+   → Database    MySQL database `spa_booking` (created by `npm run setup`)
    ← JSON back:  { success, message, data }     → the screen draws the table
 ```
 

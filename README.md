@@ -4,7 +4,7 @@ A web system for booking spa treatments. A booking is only accepted if the thera
 
 **Major feature:** automatic scheduling conflict detection across several resources (therapist + room + schedule + cleanup buffer) with a booking status workflow, automatic late/no-show handling, and cancellation fees.
 
-Stack: Node.js + Express (MVC REST API), SQLite (built into Node), plain HTML/JS frontend, JWT login.
+Stack: Node.js + Express (MVC REST API), MySQL (mysql2), plain HTML/JS
 
 ## Group roster and ownership matrix
 
@@ -19,6 +19,22 @@ Stack: Node.js + Express (MVC REST API), SQLite (built into Node), plain HTML/JS
 
 Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/ONE_DAY_GUIDE.md`.
 
+## Setup (every member)
+
+1. Install Node.js, MySQL Server and MySQL Workbench.
+2. `cd backend` then `npm install`
+3. Copy `backend/.env.example` to `backend/.env` and set `DB_PASSWORD` to your own MySQL password. Never commit `.env`.
+4. `npm run setup` (drops and rebuilds the `spa_booking` database from `database/schema.sql` and `seed.sql`, and creates the demo users)
+5. `npm start`, then open http://localhost:3000/index.html
+6. Demo login: `admin@spa.test` / `admin123`
+
+## Rules
+
+- Work on your own branch (for example `member-c-transactions`) and open a pull request into `main`.
+- Only edit your own slice's files. Tell Member B before changing `config/db.js`, `schema.sql`, `seed.sql`, `setup.js`, `audit.js` or `users.model.js`.
+- Models use `async/await` with `db.query` (mysql2), never `db.prepare`.
+- After anyone changes `schema.sql` or `seed.sql`, everyone pulls and runs `npm run setup` again.
+
 ## How to run
 
 Requires **Node.js 22.13 or newer** (24 LTS recommended).
@@ -28,11 +44,10 @@ cd backend
 npm install
 copy .env.example .env        # Mac/Linux: cp .env.example .env
 npm run setup                 # builds the database from schema.sql + seed.sql (wipes old data)
-npm run dev                   # http://localhost:3000
+npm start                  # http://localhost:3000
 ```
 
 Demo logins: `admin@spa.test / admin123`, `reception@spa.test / reception123`, `customer@spa.test / customer123`.
-Node may print an "ExperimentalWarning" about SQLite. That is harmless.
 
 ## Folder structure
 
