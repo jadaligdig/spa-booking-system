@@ -17,7 +17,7 @@ async function api(method, path, body) {
   const json = await res.json().catch(() => ({ success: false, message: 'Server sent a bad response' }));
   if (res.status === 401 && !path.startsWith('/auth/login')) { logout(); }
   if (!json.success) {
-    const err = new Error(json.message || 'Request failed');
+    const err = new Error(json.message || 'Request failed (HTTP ' + res.status + '): ' + JSON.stringify(json));
     err.errors = json.errors || [];
     err.status = res.status;
     throw err;
