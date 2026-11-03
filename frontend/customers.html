@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Management - Core</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/customers.css">
+</head>
+<body>
+    <div id="nav-container"></div>
+    
+    <main class="container">
+        <h1>Customer Management</h1>
+        
+        <!-- Customer Input Form -->
+        <form id="customer-form" class="customer-form">
+            <input type="hidden" id="customer-id">
+            
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" id="name" required placeholder="Enter customer name">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" required placeholder="Enter customer email">
+            </div>
+            
+            <div class="form-group">
+                <label for="phone">Phone:</label>
+                <input type="text" id="phone" required placeholder="Enter phone number">
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Customer</button>
+                <button type="button" id="cancel-btn" class="btn btn-secondary" style="display: none;">Cancel</button>
+            </div>
+        </form>
+
+        <hr>
+
+        <!-- Customer Data Table -->
+        <h2>Customer List</h2>
+        <div class="table-responsive">
+            <table id="customers-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS dynamically injects customer rows here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/nav.js"></script>
+    <script src="js/customers.js"></script>
+</body>
+</html>
