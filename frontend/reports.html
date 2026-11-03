@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reports</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav id="nav"></nav>
+  <main>
+    <div id="msg" class="msg"></div>
+    <div id="loading" class="loading">Loading...</div>
+
+    <div class="card">
+      <h1>Dashboard</h1>
+      <table>
+        <tbody>
+          <tr><th>Total revenue</th><td id="revenue">-</td></tr>
+          <tr><th>Average rating</th><td id="rating">-</td></tr>
+        </tbody>
+      </table>
+      <h2>Bookings by status</h2>
+      <table>
+        <thead><tr><th>Status</th><th>Total</th></tr></thead>
+        <tbody id="statusRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h1>Service popularity</h1>
+      <p>Every service is listed, including services with 0 bookings.</p>
+      <table>
+        <thead><tr><th>Service</th><th>Total bookings</th></tr></thead>
+        <tbody id="popRows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    requireLogin(); renderNav();
+    const $ = (id) => document.getElementById(id);
+
+    async function load() {
+      setLoading(true); clearMsg();
+      try {
+        const [pop, dash] = await Promise.all([
+          api('GET', '/reports/service-popularity'),
+          api('GET', '/reports/dashboard'),
+        ]);
+
+        $('popRows').innerHTML = pop.map((s) =>
+          `<tr><td>${s.name}</td><td>${s.total_bookings}</td></tr>`).join('')
+          || '<tr><td colspan="2">No services yet</td></tr>';
+
+        $('statusRows').innerHTML = dash.bookingsByStatus.map((s) =>
+          `<tr><td>${s.status}</td><td>${s.total}</td></tr>`).join('')
+          || '<tr><td colspan="2">No bookings yet</td></tr>';
+
+        $('revenue').textContent = Number(dash.totalRevenue).toFixed(2);
+        $('rating').textContent = dash.averageRating === null ? 'No reviews yet' : dash.averageRating;
+      } catch (e) {
+        showMsg(e.status === 403 ? 'Only admin and receptionist can view reports.' : e.message);
+      } finally { setLoading(false); }
+    }
+    load();
+  </script>
+</body>
+</html>
