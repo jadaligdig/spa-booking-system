@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SPA Booking - Login</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
+
 <body>
   <main style="max-width:380px">
     <div class="card">
@@ -21,6 +23,20 @@
   </main>
   <script src="/js/api.js"></script>
   <script>
+    function clearMsg() {
+      document.getElementById('msg').textContent = '';
+    }
+
+    function setLoading(isLoading) {
+      document.getElementById('loading').style.display =
+        isLoading ? 'block' : 'none';
+
+      document.getElementById('loginBtn').disabled = isLoading;
+    }
+
+    function showMsg(message) {
+      document.getElementById('msg').textContent = message;
+    }
     document.getElementById('loginBtn').addEventListener('click', async () => {
       clearMsg(); setLoading(true);
       try {
@@ -36,4 +52,5 @@
     });
   </script>
 </body>
+
 </html>

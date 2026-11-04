@@ -3,8 +3,19 @@ const db = require('../config/db');
 // Allowed booking status changes
 const allowedMoves = {
     pending: ['confirmed', 'cancelled'],
-    confirmed: ['in_service', 'cancelled', 'no_show'],
+    confirmed: ['in_service', 'completed', 'cancelled', 'no_show'],
     in_service: ['completed']
+};
+
+// Get bookings for the workflow page
+exports.findBookings = async () => {
+    const [rows] = await db.query(
+        `SELECT id, status, start_at, end_at
+         FROM bookings
+         ORDER BY id DESC`
+    );
+
+    return rows;
 };
 
 // Manually change a booking's status
