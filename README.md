@@ -17,7 +17,7 @@ Stack: Node.js + Express (MVC REST API), MySQL (mysql2), plain HTML/JS
 | E: |jerrydevvv| Unique feature (workflow) + Audit | booking_status_history, alerts, audit_logs | `/api/workflow`, `/api/alerts`, `/api/audit`; alerts.html | bookings + alerts: FULL OUTER | Status workflow, alerts, auto no-show |
 | F: |Silthia| Reports | reviews, promotions | `/api/reviews`, `/api/promotions`, `/api/reports`; reports.html | service popularity: RIGHT | Dashboard / reporting |
 
-Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/ONE_DAY_GUIDE.md`.
+Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/GUIDE.md`.
 
 ## Setup (every member)
 
@@ -30,7 +30,7 @@ Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step pla
 
 ## Rules
 
-- Work on your own branch (for example `member-c-transactions`) and open a pull request into `main`.
+- Work on your own branch (for example `member-b-transactions`) and open a pull request into `main`.
 - Only edit your own slice's files. Tell Member B before changing `config/db.js`, `schema.sql`, `seed.sql`, `setup.js`, `audit.js` or `users.model.js`.
 - Models use `async/await` with `db.query` (mysql2), never `db.prepare`.
 - After anyone changes `schema.sql` or `seed.sql`, everyone pulls and runs `npm run setup` again.
@@ -56,7 +56,7 @@ spa-booking-sia/
 ├─ README.md
 ├─ .gitignore
 ├─ docs/
-│  ├─ ONE_DAY_GUIDE.md        step-by-step plan
+│  ├─ GUIDE.md                step-by-step plan
 │  ├─ SLICE_CARDS.md          what each member builds
 │  └─ er-diagram.png          (add before the deadline)
 ├─ backend/
