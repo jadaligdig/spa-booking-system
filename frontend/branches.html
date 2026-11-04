@@ -39,6 +39,7 @@
   <script src="/js/nav.js"></script>
   <script>
     requireLogin();
+    renderNav();
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const hhmm = (t) => String(t ?? '').slice(0, 5);   // "09:00:00" -> "09:00"
