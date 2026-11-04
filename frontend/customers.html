@@ -5,64 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Customer Management - Core</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
-    h1 { color: #2c3e50; }
-    .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
-    th { background-color: #2c3e50; color: white; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    .btn { padding: 8px 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn:hover { background-color: #2980b9; }
-    .btn-danger, .btn-delete { background-color: #e74c3c; }
-    .btn-danger:hover, .btn-delete:hover { background-color: #c0392b; }
-    .btn-edit { background-color: #f39c12; }
-    .btn-edit:hover { background-color: #d68910; }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-    .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
-    .error-msg { color: #e74c3c; margin-bottom: 15px; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
+    
+    .navbar { background-color: #3e3838; padding: 12px 20px; display: flex; gap: 15px; align-items: center; color: white; font-size: 14px; }
+    .navbar a { color: #ccc; text-decoration: none; padding: 5px 8px; border-radius: 4px; }
+    .navbar a:hover, .navbar a.active { color: white; background-color: #554e4e; }
+    .navbar .brand { font-weight: bold; color: white; }
+
+    .main-container { padding: 20px; max-width: 1100px; margin: auto; }
+    h2 { color: #2c3e50; margin-top: 0; }
+
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    
+    .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+    .form-group { flex: 1; min-width: 220px; }
+    .form-group label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #555; }
+    .form-group input { width: 100%; padding: 8px 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    
+    .btn { padding: 8px 16px; background-color: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn:hover { background-color: #1a252f; }
+    .btn-secondary { background-color: #95a5a6; margin-left: 5px; }
+    .btn-secondary:hover { background-color: #7f8c8d; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+    th, td { padding: 12px 15px; border-bottom: 1px solid #e0e0e0; text-align: left; font-size: 14px; }
+    th { background-color: #2c3e50; color: white; font-weight: 600; }
+    tr:hover { background-color: #f9f9f9; }
+
+    .action-btns { display: flex; gap: 6px; }
+    .btn-edit { background-color: #3498db; padding: 5px 10px; font-size: 12px; }
+    .btn-edit:hover { background-color: #2980b9; }
+    .btn-delete { background-color: #a93226; padding: 5px 10px; font-size: 12px; }
+    .btn-delete:hover { background-color: #78281f; }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <h1>Customer Form</h1>
-    <form id="customer-form">
-      <input type="hidden" id="customer-id">
-      <div class="form-group">
-        <label for="name">Full Name</label>
-        <input type="text" id="name" required>
-      </div>
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email">
-      </div>
-      <div class="form-group">
-        <label for="phone">Phone</label>
-        <input type="text" id="phone" required>
-      </div>
-      <button type="submit" class="btn">Save Customer</button>
-      <button type="button" id="cancel-btn" class="btn" style="display:none; background-color: #95a5a6;">Cancel</button>
-    </form>
+  <div class="navbar">
+    <span class="brand">SPA Booking</span>
+    <a href="customers.html" class="active">Customers</a>
+    <a href="branches.html">Branches</a>
+    <a href="services.html">Services</a>
+    <a href="bookings.html">Bookings</a>
+    <a href="availability.html">Availability</a>
+    <a href="alerts.html">Alerts & Audit</a>
+    <a href="reports.html">Reports</a>
   </div>
 
-  <div class="container">
-    <h1>Customer Management</h1>
-    
-    <table id="customers-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Full Name</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-      </tbody>
-    </table>
+  <div class="main-container">
+    <h2>Customers</h2>
+
+    <div class="card">
+      <h3 style="margin-top: 0; font-size: 16px; color: #444;" id="form-title">Add customer</h3>
+      <form id="customer-form">
+        <input type="hidden" id="customer-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" required placeholder="Enter full name">
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="Enter email address">
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" required placeholder="Enter phone number">
+          </div>
+        </div>
+        <button type="submit" class="btn">Save</button>
+        <button type="button" id="cancel-btn" class="btn btn-secondary" style="display:none;">Cancel</button>
+      </form>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table id="customers-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th style="width: 130px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <script src="api.js"></script>
