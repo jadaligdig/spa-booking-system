@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bookings</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <nav id="nav"></nav>
+
+    <main>
+        <div class="card">
+            <h1>Create Booking</h1>
+            <div id="msg" class="msg"></div>
+            <div id="loading" class="loading">Loading...</div>
+
+            <div class="row">
+                <div>
+                    <label for="date">Date</label>
+                    <input type="date" id="date">
+                </div>
+
+                <div>
+                    <label for="branch">Branch</label>
+                    <select id="branch"></select>
+                </div>
+
+                <div>
+                    <label for="service">Service</label>
+                    <select id="service"></select>
+                </div>
+            </div>
+
+            <p>
+                <button id="searchBtn" type="button">Find Available Slots</button>
+            </p>
+
+            <h2>Available Slots</h2>
+            <div id="results"></div>
+
+            <form id="bookingForm" hidden>
+                <h2>Booking Details</h2>
+
+                <div class="row">
+                    <div>
+                        <label for="customerId">Customer ID</label>
+                        <input id="customerId" type="number" min="1" required>
+                    </div>
+
+                    <div>
+                        <label for="notes">Notes</label>
+                        <input id="notes" type="text">
+                    </div>
+                </div>
+
+                <p id="selectedSlot"></p>
+                <button id="submitBtn" type="submit">Create Booking</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>My Bookings</h2>
+            <div id="bookingList"></div>
+            <p>
+                <button id="refreshBtn" type="button">Refresh Bookings</button>
+            </p>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/nav.js"></script>
+    <script>
+        requireLogin();
+        renderNav();
+
+        const $ = (id) => document.getElementById(id);
+        let selectedSlot = null;
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[char]);
+        }
+
+        function showMsg(message, type) {
+            $('msg').textContent = message;
+            $('msg').className = type ? 'msg ' + type : 'msg';
+        }
+
+        function clearMsg() {
+            $('msg').textContent = '';
+            $('msg').className = 'msg';
+        }
+
+        function setLoading(isLoading) {
+            $('loading').classList.toggle('on', isLoading);
+        }
+
+        function setToday() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            $('date').value = year + '-' + month + '-' + day;
+            $('date').min = $('date').value;
+        }
+
+        async function loadOptions() {
+            setLoading(true);
+            clearMsg();
+
+            try {
+                const branches = await api('GET', '/branches');
+                const services = await api('GET', '/availability/services');
+
+                $('branch').innerHTML = branches.map((branch) =>
+                    '<option value="' + branch.id + '">' +
+                    escapeHtml(branch.name) + '</option>'
+                ).join('');
+
+                $('service').innerHTML = services.map((service) =>
+                    '<option value="' + service.id + '">' +
+                    escapeHtml(service.name) + ' (' +
+                    escapeHtml(service.duration_min) + ' minutes)</option>'
+                ).join('');
+
+                if (!branches.length || !services.length) {
+                    showMsg('No active branches or services found.');
+                }
+            } catch (error) {
+                showMsg(error.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function findSlots() {
+            clearMsg();
+            $('results').innerHTML = '';
+            $('bookingForm').hidden = true;
+            selectedSlot = null;
+
+            const date = $('date').value;
+            const branchId = $('branch').value;
+            const serviceId = $('service').value;
+
+            if (!date || !branchId || !serviceId) {
+                showMsg('Please select a date, branch, and service.');
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const slots = await api(
+                    'GET',
+                    '/availability?date=' + encodeURIComponent(date) +
+                    '&branch_id=' + encodeURIComponent(branchId) +
+                    '&service_id=' + encodeURIComponent(serviceId)
+                );
+
+                if (!slots.length) {
+                    $('results').textContent = 'No available slots found.';
+                    return;
+                }
+
+                $('results').innerHTML = '<table><thead><tr>' +
+                    '<th>Therapist</th><th>Room</th><th>Start</th><th>End</th><th></th>' +
+                    '</tr></thead><tbody>' +
+                    slots.map((slot, index) =>
+                        '<tr>' +
+                        '<td>' + escapeHtml(slot.therapist.full_name) + '</td>' +
+                        '<td>' + escapeHtml(slot.room.name) + '</td>' +
+                        '<td>' + escapeHtml(slot.start_at) + '</td>' +
+                        '<td>' + escapeHtml(slot.end_at) + '</td>' +
+                        '<td><button type="button" data-slot="' + index + '">Select</button></td>' +
+                        '</tr>'
+                    ).join('') +
+                    '</tbody></table>';
+
+                $('results').querySelectorAll('[data-slot]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        selectedSlot = slots[Number(button.dataset.slot)];
+                        $('bookingForm').hidden = false;
+                        $('selectedSlot').textContent =
+                            'Selected: ' + selectedSlot.start_at +
+                            ', ' + selectedSlot.therapist.full_name +
+                            ', ' + selectedSlot.room.name;
+                    });
+                });
+            } catch (error) {
+                showMsg(error.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function loadBookings() {
+            try {
+                const bookings = await api('GET', '/bookings');
+
+                if (!bookings.length) {
+                    $('bookingList').textContent = 'No bookings found.';
+                    return;
+                }
+
+                $('bookingList').innerHTML = '<div style="overflow-x:auto;"><table>' +
+                    '<thead><tr><th>ID</th><th>Customer</th><th>Service</th>' +
+                    '<th>Therapist</th><th>Room</th><th>Start</th><th>Status</th>' +
+                    '</tr></thead><tbody>' +
+                    bookings.map((booking) =>
+                        '<tr><td>' + escapeHtml(booking.id) +
+                        '</td><td>' + escapeHtml(booking.customer_name) +
+                        '</td><td>' + escapeHtml(booking.service_name) +
+                        '</td><td>' + escapeHtml(booking.therapist_name) +
+                        '</td><td>' + escapeHtml(booking.room_name) +
+                        '</td><td>' + escapeHtml(booking.start_at) +
+                        '</td><td>' + escapeHtml(booking.status) + '</td></tr>'
+                    ).join('') +
+                    '</tbody></table></div>';
+            } catch (error) {
+                $('bookingList').textContent = error.message;
+            }
+        }
+
+        $('searchBtn').addEventListener('click', findSlots);
+        $('refreshBtn').addEventListener('click', loadBookings);
+
+        $('bookingForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            clearMsg();
+
+            if (!selectedSlot) {
+                showMsg('Select an available slot first.');
+                return;
+            }
+
+            const customerId = Number($('customerId').value);
+
+            if (!customerId || customerId < 1) {
+                showMsg('Enter a valid customer ID.');
+                return;
+            }
+
+            $('submitBtn').disabled = true;
+
+            const booking = {
+                customer_id: customerId,
+                service_id: Number($('service').value),
+                therapist_id: selectedSlot.therapist.id,
+                room_id: selectedSlot.room.id,
+                start_at: selectedSlot.start_at,
+                notes: $('notes').value || null
+            };
+
+            try {
+                const result = await api('POST', '/bookings', booking);
+                showMsg(result.message || 'Booking created successfully.', 'success');
+
+                $('bookingForm').reset();
+                $('bookingForm').hidden = true;
+                selectedSlot = null;
+
+                await loadBookings();
+                await findSlots();
+            } catch (error) {
+                showMsg(error.message, 'error');
+            } finally {
+                $('submitBtn').disabled = false;
+            }
+        });
+
+        setToday();
+        loadOptions();
+        loadBookings();
+    </script>
+</body>
+
+</html>

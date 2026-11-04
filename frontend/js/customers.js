@@ -9,7 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadCustomers() {
         try {
-            const customers = await apiFetch('/api/customers');
+            const response = await apiFetch('/api/customers');
+            const customers = Array.isArray(response)
+                ? response
+                : (Array.isArray(response?.data) ? response.data : []);
+
             renderTable(customers);
         } catch (err) {
             alert('Failed to load customers: ' + err.message);
@@ -19,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTable(customers) {
         if (!customers || customers.length === 0) {
             tableBody.innerHTML =
-                '<tr><td colspan="5">No customers found.</td></tr>';
+                '<tr><td colspan="5" style="text-align: center;">No customers found.</td></tr>';
             return;
         }
 
@@ -27,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <tr>
                 <td>${c.id}</td>
                 <td>${escapeHtml(c.full_name)}</td>
-                <td>${escapeHtml(c.email)}</td>
+                <td>${escapeHtml(c.email || 'N/A')}</td>
                 <td>${escapeHtml(c.phone)}</td>
                 <td>
                     <button type="button" class="btn btn-edit"
@@ -52,9 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 customerIdInput.value = customer.id;
                 nameInput.value = customer.full_name;
                 emailInput.value = customer.email || '';
-                phoneInput.value = customer.phone;
+                phoneInput.value = customer.phone || '';
 
-                cancelBtn.style.display = 'inline-block';
+                if (cancelBtn) {
+                    cancelBtn.style.display = 'inline-block';
+                }
             } catch (err) {
                 alert('Failed to load customer: ' + err.message);
             }
@@ -110,10 +116,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetForm() {
         form.reset();
         customerIdInput.value = '';
-        cancelBtn.style.display = 'none';
+
+        if (cancelBtn) {
+            cancelBtn.style.display = 'none';
+        }
     }
 
-    cancelBtn.addEventListener('click', resetForm);
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', resetForm);
+    }
 
     function escapeHtml(str) {
         return String(str || '').replace(/[&<>"']/g, m => ({
