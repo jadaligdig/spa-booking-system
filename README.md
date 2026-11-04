@@ -17,7 +17,11 @@ Stack: Node.js + Express (MVC REST API), MySQL (mysql2), plain HTML/JS
 | E: |jerrydevvv| Unique feature (workflow) + Audit | booking_status_history, alerts, audit_logs | `/api/workflow`, `/api/alerts`, `/api/audit`; alerts.html | bookings + alerts: FULL OUTER | Status workflow, alerts, auto no-show |
 | F: |Silthia| Reports | reviews, promotions | `/api/reviews`, `/api/promotions`, `/api/reports`; reports.html | service popularity: RIGHT | Dashboard / reporting |
 
-Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/ONE_DAY_GUIDE.md`.
+Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/GUIDE.md`.
+
+ER diagram: [docs/er-diagram.png](docs/er-diagram.png)
+
+![ER diagram](docs/er-diagram.png)
 
 ## Setup (every member)
 
