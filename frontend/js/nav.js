@@ -1,19 +1,77 @@
-// Top menu shared by all pages. When you finish a screen, make sure its link is here.
+// Navigation and authentication helpers
+
 const PAGES = [
-  ['customers.html', 'Customers'],        // Member A
-  ['branches.html', 'Branches'],          // Member B
-  ['services.html', 'Services'],          // Member B
-  ['bookings.html', 'Bookings'],          // Member C
-  ['availability.html', 'Availability'],  // Member D
-  ['alerts.html', 'Alerts & Audit'],      // Member E
-  ['reports.html', 'Reports'],            // Member F
+    ['customers.html', 'Customers'],
+    ['branches.html', 'Branches'],
+    ['services.html', 'Services'],
+    ['availability.html', 'Availability'],
+    ['alerts.html', 'Alerts & Audit'],
+    ['reports.html', 'Reports']
 ];
 
+function getUser() {
+    try {
+        return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+        return null;
+    }
+}
+
+function requireLogin() {
+    if (!localStorage.getItem('token')) {
+        window.location.href = '/index.html';
+        return false;
+    }
+    return true;
+}
+
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/index.html';
+}
+
 function renderNav() {
-  const user = getUser();
-  const links = PAGES.map(([href, label]) => `<a href="/${href}">${label}</a>`).join('');
-  document.getElementById('nav').innerHTML =
-    `<strong style="color:#fff">SPA Booking</strong>${links}<span class="spacer"></span>` +
-    `<span style="color:#dfe">${user ? user.full_name + ' (' + user.role + ')' : ''}</span>` +
-    `<a href="#" onclick="logout()">Logout</a>`;
+    const nav = document.getElementById('nav') ||
+        document.getElementById('nav-container');
+
+    if (!nav) return;
+
+    const user = getUser();
+
+    const links = PAGES.map(([href, label]) =>
+        `<a href="/${href}">${label}</a>`
+    ).join('');
+
+    nav.innerHTML = `
+        <strong>SPA Booking</strong>
+        ${links}
+        <span class="spacer"></span>
+        <span>${user ? user.full_name + ' (' + user.role + ')' : ''}</span>
+        <a href="#" id="logoutBtn">Logout</a>
+    `;
+
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        logout();
+    });
+}
+
+function setLoading(isLoading) {
+    document.getElementById('loading')
+        ?.classList.toggle('on', isLoading);
+}
+
+function clearMsg() {
+    const msg = document.getElementById('msg');
+    if (msg) msg.className = 'msg';
+}
+
+function showMsg(message, type = 'error', errors = []) {
+    const msg = document.getElementById('msg');
+    if (!msg) return;
+
+    msg.className = 'msg ' + type;
+    msg.textContent = message +
+        (errors.length ? ' - ' + errors.join('; ') : '');
 }

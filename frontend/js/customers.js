@@ -10,7 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadCustomers() {
         try {
             const response = await apiFetch('/api/customers');
-            const customers = Array.isArray(response) ? response : (response.data || []);
+            const customers = Array.isArray(response)
+                ? response
+                : (Array.isArray(response?.data) ? response.data : []);
+
             renderTable(customers);
         } catch (err) {
             alert('Failed to load customers: ' + err.message);
@@ -19,7 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTable(customers) {
         if (!customers || customers.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No customers found.</td></tr>';
+            tableBody.innerHTML =
+                '<tr><td colspan="5" style="text-align: center;">No customers found.</td></tr>';
             return;
         }
 
@@ -30,16 +34,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeHtml(c.email || 'N/A')}</td>
                 <td>${escapeHtml(c.phone)}</td>
                 <td>
-                    <button class="btn btn-edit" onclick="editCustomer(${c.id}, '${escapeHtml(c.full_name)}', '${escapeHtml(c.email || '')}', '${escapeHtml(c.phone)}')">Edit</button>
-                    <button class="btn btn-delete" onclick="deleteCustomer(${c.id})">Delete</button>
+                    <button type="button" class="btn btn-edit"
+                        data-id="${c.id}">Edit</button>
+                    <button type="button" class="btn btn-delete"
+                        data-id="${c.id}">Delete</button>
                 </td>
             </tr>
         `).join('');
     }
 
+    tableBody.addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('.btn-edit');
+        const deleteBtn = e.target.closest('.btn-delete');
+
+        if (editBtn) {
+            const id = editBtn.dataset.id;
+
+            try {
+                const customer = await apiFetch(`/api/customers/${id}`);
+
+                customerIdInput.value = customer.id;
+                nameInput.value = customer.full_name;
+                emailInput.value = customer.email || '';
+                phoneInput.value = customer.phone || '';
+
+                if (cancelBtn) {
+                    cancelBtn.style.display = 'inline-block';
+                }
+            } catch (err) {
+                alert('Failed to load customer: ' + err.message);
+            }
+        }
+
+        if (deleteBtn) {
+            const id = deleteBtn.dataset.id;
+
+            if (confirm('Are you sure you want to delete this customer?')) {
+                try {
+                    await apiFetch(`/api/customers/${id}`, {
+                        method: 'DELETE'
+                    });
+                    loadCustomers();
+                } catch (err) {
+                    alert('Error deleting customer: ' + err.message);
+                }
+            }
+        }
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
+
         const id = customerIdInput.value;
+
         const payload = {
             full_name: nameInput.value,
             email: emailInput.value,
@@ -58,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(payload)
                 });
             }
+
             resetForm();
             loadCustomers();
         } catch (err) {
@@ -65,29 +113,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    window.editCustomer = (id, fullName, email, phone) => {
-        customerIdInput.value = id;
-        nameInput.value = fullName;
-        emailInput.value = email;
-        phoneInput.value = phone;
-        if (cancelBtn) cancelBtn.style.display = 'inline-block';
-    };
-
-    window.deleteCustomer = async (id) => {
-        if (confirm('Are you sure you want to delete this customer?')) {
-            try {
-                await apiFetch(`/api/customers/${id}`, { method: 'DELETE' });
-                loadCustomers();
-            } catch (err) {
-                alert('Error deleting customer: ' + err.message);
-            }
-        }
-    };
-
     function resetForm() {
         form.reset();
         customerIdInput.value = '';
-        if (cancelBtn) cancelBtn.style.display = 'none';
+
+        if (cancelBtn) {
+            cancelBtn.style.display = 'none';
+        }
     }
 
     if (cancelBtn) {
@@ -95,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function escapeHtml(str) {
-        return String(str || '').replace(/[&<>"']/g, (m) => ({
+        return String(str || '').replace(/[&<>"']/g, m => ({
             '&': '&amp;',
             '<': '&lt;',
             '>': '&gt;',

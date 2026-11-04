@@ -17,6 +17,51 @@
         <div id="msg" class="msg"></div>
         <p id="loading" class="loading">Loading...</p>
 
+        <!-- Booking Status Workflow -->
+        <div class="card">
+            <h2>Booking Status Workflow</h2>
+            <p>Update booking statuses and provide a reason for every change.</p>
+
+            <div class="row">
+                <div>
+                    <label for="workflowBooking">Select Booking</label>
+                    <select id="workflowBooking">
+                        <option value="">Loading bookings...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="newStatus">New Status</label>
+                    <select id="newStatus" disabled>
+                        <option value="">Select a booking first</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="statusReason">Reason</label>
+                    <input id="statusReason" type="text" placeholder="Enter reason for status change" maxlength="255">
+                </div>
+            </div>
+
+            <p>
+                <button id="updateStatusBtn" disabled>Update Booking Status</button>
+                <button id="refreshBookingsBtn" type="button">Refresh Bookings</button>
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Current Status</th>
+                    </tr>
+                </thead>
+                <tbody id="workflowRows"></tbody>
+            </table>
+        </div>
+
+        <!-- Create Manual Alert -->
         <div class="card">
             <h2>Create Manual Alert</h2>
 
@@ -42,6 +87,7 @@
             </p>
         </div>
 
+        <!-- Alerts List -->
         <div class="card">
             <h2>Alerts List</h2>
 
@@ -62,6 +108,7 @@
             </table>
         </div>
 
+        <!-- Booking Alert Report -->
         <div class="card">
             <h2>Booking–Alert Report (FULL OUTER JOIN)</h2>
 
@@ -81,6 +128,7 @@
             </table>
         </div>
 
+        <!-- Audit Logs -->
         <div class="card" id="auditCard">
             <h2>Audit Logs (Admin Only)</h2>
 
@@ -127,48 +175,183 @@
             $('auditCard').style.display = 'none';
         }
 
+        // Allowed status transitions
+        const allowedMoves = {
+            pending: ['confirmed', 'cancelled'],
+            confirmed: ['in_service', 'completed', 'cancelled', 'no_show'],
+            in_service: ['completed'],
+            completed: [],
+            cancelled: [],
+            no_show: []
+        };
+
+        let bookings = [];
+
+        function formatDate(value) {
+            if (!value) return '';
+            return String(value).replace('T', ' ');
+        }
+
+        // Load bookings for workflow
+        async function loadBookings() {
+            const selectedId = $('workflowBooking').value;
+
+            bookings = await api('GET', '/workflow/bookings');
+
+            $('workflowBooking').innerHTML =
+                '<option value="">Select a booking</option>' +
+                bookings.map((booking) => `
+                    <option value="${esc(booking.id)}">
+                        Booking #${esc(booking.id)} (${esc(booking.status)})
+                    </option>
+                `).join('');
+
+            $('workflowRows').innerHTML = bookings.length
+                ? bookings.map((booking) => `
+                    <tr>
+                        <td>${esc(booking.id)}</td>
+                        <td>${esc(formatDate(booking.start_at))}</td>
+                        <td>${esc(formatDate(booking.end_at))}</td>
+                        <td>${esc(booking.status)}</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="4">No bookings found.</td></tr>';
+
+            if (bookings.some((booking) => String(booking.id) === selectedId)) {
+                $('workflowBooking').value = selectedId;
+            }
+
+            updateStatusOptions();
+        }
+
+        // Show only valid next statuses
+        function updateStatusOptions() {
+            const bookingId = $('workflowBooking').value;
+            const booking = bookings.find(
+                (item) => String(item.id) === bookingId
+            );
+
+            const statusSelect = $('newStatus');
+
+            if (!booking) {
+                statusSelect.innerHTML =
+                    '<option value="">Select a booking first</option>';
+                statusSelect.disabled = true;
+                $('updateStatusBtn').disabled = true;
+                return;
+            }
+
+            const nextStatuses = allowedMoves[booking.status] || [];
+
+            statusSelect.innerHTML = nextStatuses.length
+                ? '<option value="">Select new status</option>' +
+                nextStatuses.map((status) => `
+                    <option value="${esc(status)}">${esc(status)}</option>
+                  `).join('')
+                : '<option value="">No further status changes</option>';
+
+            statusSelect.disabled = nextStatuses.length === 0;
+            $('updateStatusBtn').disabled = nextStatuses.length === 0;
+        }
+
+        $('workflowBooking').addEventListener('change', updateStatusOptions);
+
+        // Update booking status
+        $('updateStatusBtn').addEventListener('click', async () => {
+            clearMsg();
+
+            const bookingId = $('workflowBooking').value;
+            const newStatus = $('newStatus').value;
+            const reason = $('statusReason').value.trim();
+
+            if (!bookingId || !newStatus) {
+                showMsg('Please select a booking and new status.', 'error');
+                return;
+            }
+
+            if (!reason) {
+                showMsg('Please enter a reason for the status change.', 'error');
+                return;
+            }
+
+            try {
+                await api('PATCH', `/workflow/bookings/${bookingId}/status`, {
+                    new_status: newStatus,
+                    reason
+                });
+
+                $('statusReason').value = '';
+
+                await Promise.all([
+                    loadBookings(),
+                    loadAlerts(),
+                    loadReport()
+                ]);
+
+                showMsg(
+                    `Booking #${bookingId} updated to ${newStatus}.`,
+                    'success'
+                );
+
+            } catch (error) {
+                showMsg(error.message, 'error', error.errors);
+            }
+        });
+
+        $('refreshBookingsBtn').addEventListener('click', async () => {
+            try {
+                await loadBookings();
+                showMsg('Bookings refreshed successfully.', 'success');
+            } catch (error) {
+                showMsg(error.message, 'error');
+            }
+        });
+
+        // Load alerts
         async function loadAlerts() {
             const rows = await api('GET', '/alerts');
 
             $('alertRows').innerHTML = rows.length
                 ? rows.map((a) => `
-          <tr>
-            <td>${esc(a.id)}</td>
-            <td>${esc(a.booking_id)}</td>
-            <td>${esc(a.type)}</td>
-            <td>${esc(a.message)}</td>
-            <td>${esc(a.booking_status)}</td>
-            <td>${Number(a.is_resolved) ? 'Resolved' : 'Unresolved'}</td>
-            <td>${esc(a.created_at)}</td>
-            <td>
-              ${!Number(a.is_resolved)
+                    <tr>
+                        <td>${esc(a.id)}</td>
+                        <td>${esc(a.booking_id)}</td>
+                        <td>${esc(a.type)}</td>
+                        <td>${esc(a.message)}</td>
+                        <td>${esc(a.booking_status)}</td>
+                        <td>${Number(a.is_resolved) ? 'Resolved' : 'Unresolved'}</td>
+                        <td>${esc(a.created_at)}</td>
+                        <td>
+                            ${!Number(a.is_resolved)
                         ? `<button data-resolve="${a.id}">Resolve</button>`
                         : ''}
-              <button class="danger" data-delete="${a.id}">Delete</button>
-            </td>
-          </tr>
-        `).join('')
+                            <button class="danger" data-delete="${a.id}">Delete</button>
+                        </td>
+                    </tr>
+                `).join('')
                 : '<tr><td colspan="8">No alerts found.</td></tr>';
         }
 
+        // Load booking-alert report
         async function loadReport() {
             const rows = await api('GET', '/alerts/report/booking-alerts');
 
             $('reportRows').innerHTML = rows.length
                 ? rows.map((r) => `
-          <tr>
-            <td>${esc(r.booking_id)}</td>
-            <td>${esc(r.booking_status)}</td>
-            <td>${esc(r.alert_id)}</td>
-            <td>${esc(r.alert_type)}</td>
-            <td>${esc(r.alert_message)}</td>
-            <td>${r.is_resolved == null ? '' : Number(r.is_resolved) ? 'Yes' : 'No'}</td>
-            <td>${esc(r.alert_created_at)}</td>
-          </tr>
-        `).join('')
+                    <tr>
+                        <td>${esc(r.booking_id)}</td>
+                        <td>${esc(r.booking_status)}</td>
+                        <td>${esc(r.alert_id)}</td>
+                        <td>${esc(r.alert_type)}</td>
+                        <td>${esc(r.alert_message)}</td>
+                        <td>${r.is_resolved == null ? '' : Number(r.is_resolved) ? 'Yes' : 'No'}</td>
+                        <td>${esc(r.alert_created_at)}</td>
+                    </tr>
+                `).join('')
                 : '<tr><td colspan="7">No report records found.</td></tr>';
         }
 
+        // Load audit logs
         async function loadAudit() {
             if (!isAdmin) return;
 
@@ -176,51 +359,51 @@
 
             $('auditRows').innerHTML = rows.length
                 ? rows.map((a) => `
-          <tr>
-            <td>${esc(a.id)}</td>
-            <td>${esc(a.user_id)}</td>
-            <td>${esc(a.action)}</td>
-            <td>${esc(a.table_name)}</td>
-            <td>${esc(a.record_id)}</td>
-            <td>${esc(a.details)}</td>
-            <td>${esc(a.created_at)}</td>
-          </tr>
-        `).join('')
+                    <tr>
+                        <td>${esc(a.id)}</td>
+                        <td>${esc(a.user_id)}</td>
+                        <td>${esc(a.action)}</td>
+                        <td>${esc(a.table_name)}</td>
+                        <td>${esc(a.record_id)}</td>
+                        <td>${esc(a.details)}</td>
+                        <td>${esc(a.created_at)}</td>
+                    </tr>
+                `).join('')
                 : '<tr><td colspan="7">No audit logs found.</td></tr>';
         }
 
+        // Load all page data
         async function loadPage() {
             setLoading(true);
             clearMsg();
 
-            try {
-                const names = ['Alerts', 'Booking Report', 'Audit Logs'];
+            const tasks = [
+                ['Bookings', loadBookings],
+                ['Alerts', loadAlerts],
+                ['Booking Report', loadReport],
+                ['Audit Logs', loadAudit]
+            ];
 
-                const results = await Promise.allSettled([
-                    loadAlerts(),
-                    loadReport(),
-                    loadAudit()
-                ]);
+            const results = await Promise.allSettled(
+                tasks.map((task) => task[1]())
+            );
 
-                const errors = results
-                    .map((result, index) =>
-                        result.status === 'rejected'
-                            ? `${names[index]}: ${result.reason.message}`
-                            : null
-                    )
-                    .filter(Boolean);
+            const errors = results
+                .map((result, index) =>
+                    result.status === 'rejected'
+                        ? `${tasks[index][0]}: ${result.reason.message}`
+                        : null
+                )
+                .filter(Boolean);
 
-                if (errors.length) {
-                    showMsg(errors.join(' | '), 'error');
-                }
-
-            } catch (error) {
-                showMsg(error.message, 'error', error.errors);
-            } finally {
-                setLoading(false);
+            if (errors.length) {
+                showMsg(errors.join(' | '), 'error');
             }
+
+            setLoading(false);
         }
 
+        // Create manual alert
         $('createBtn').addEventListener('click', async () => {
             clearMsg();
 
@@ -251,6 +434,7 @@
             }
         });
 
+        // Resolve or delete alerts
         $('alertRows').addEventListener('click', async (event) => {
             const resolveId = event.target.dataset.resolve;
             const deleteId = event.target.dataset.delete;

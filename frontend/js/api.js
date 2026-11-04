@@ -1,47 +1,80 @@
-// Shared helper used by EVERY page. Talks to the REST API with fetch().
-const API = '/api';
+// API Helper for SPA Booking System
 
-const getToken = () => localStorage.getItem('token');
-const getUser = () => JSON.parse(localStorage.getItem('user') || 'null');
+const API_BASE_URL = 'http://localhost:3000';
 
-// api('GET', '/branches')   api('POST', '/branches', { name: '...' })
-async function api(method, path, body) {
-  const res = await fetch(API + path, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(getToken() ? { Authorization: 'Bearer ' + getToken() } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const json = await res.json().catch(() => ({ success: false, message: 'Server sent a bad response' }));
-  if (res.status === 401 && !path.startsWith('/auth/login')) { logout(); }
-  if (!json.success) {
-    const err = new Error(json.message || 'Request failed (HTTP ' + res.status + '): ' + JSON.stringify(json));
-    err.errors = json.errors || [];
-    err.status = res.status;
-    throw err;
+// Get authentication token
+function getToken() {
+  return localStorage.getItem('token');
+}
+
+// Handle API response
+async function handleResponse(response) {
+  const result = await response.json();
+
+  if (!response.ok || result.success === false) {
+    const details = Array.isArray(result.errors)
+      ? result.errors.join(', ')
+      : '';
+
+    throw new Error(
+      details
+        ? `${result.message}: ${details}`
+        : result.message || 'Request failed'
+    );
   }
-  return json.data;
+
+  return result.data;
 }
 
-function logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  location.href = '/index.html';
+// Main API request function
+async function api(method, endpoint, body = null) {
+  const token = getToken();
+
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const options = {
+    method,
+    headers
+  };
+
+  if (body !== null) {
+    options.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api${endpoint}`,
+    options
+  );
+
+  return handleResponse(response);
 }
 
-// Call at the top of every page except login
-function requireLogin() {
-  if (!getToken()) location.href = '/index.html';
-}
+// API helper for other pages
+async function apiFetch(endpoint, options = {}) {
+  const token = getToken();
 
-// Small UI helpers: loading text + error/success box (every screen must show these)
-function setLoading(on) { document.getElementById('loading')?.classList.toggle('on', on); }
-function showMsg(text, type = 'error', errors = []) {
-  const box = document.getElementById('msg');
-  if (!box) return;
-  box.className = 'msg ' + type;
-  box.textContent = text + (errors.length ? ' - ' + errors.join('; ') : '');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}${endpoint}`,
+    {
+      ...options,
+      headers
+    }
+  );
+
+  return handleResponse(response);
 }
-function clearMsg() { const b = document.getElementById('msg'); if (b) b.className = 'msg'; }
