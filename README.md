@@ -19,6 +19,8 @@ Stack: Node.js + Express (MVC REST API), MySQL (mysql2), plain HTML/JS
 
 Total: 16 tables. Details of each slice: `docs/SLICE_CARDS.md`. Step-by-step plan: `docs/GUIDE.md`.
 
+![ER diagram](docs/er-diagram.png)
+
 ## Setup (every member)
 
 1. Install Node.js, MySQL Server and MySQL Workbench.
