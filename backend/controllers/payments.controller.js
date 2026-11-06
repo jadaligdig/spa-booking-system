@@ -4,30 +4,33 @@ const transactions = require('../models/transactions.model');
 exports.createPayment = async (req, res) => {
     try {
         const { booking_id, amount, method, kind } = req.body;
+
         const validMethods = ['cash', 'card', 'gcash'];
         const validKinds = ['deposit', 'payment', 'refund', 'cancel_fee'];
 
         if (!booking_id || amount === undefined || !method || !kind) {
             return res.status(400).json({
-                message: 'Booking, amount, method, and payment kind are required'
+                success: false,
+                message: 'All payment fields are required'
             });
         }
 
-        if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+        const numericAmount = Number(amount);
+
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
             return res.status(400).json({
-                message: 'Amount must be greater than zero'
+                success: false,
+                message: 'Amount must be greater than 0'
             });
         }
 
-        if (!validMethods.includes(method)) {
+        if (
+            !validMethods.includes(method) ||
+            !validKinds.includes(kind)
+        ) {
             return res.status(400).json({
-                message: 'Invalid payment method'
-            });
-        }
-
-        if (!validKinds.includes(kind)) {
-            return res.status(400).json({
-                message: 'Invalid payment kind'
+                success: false,
+                message: 'Invalid payment method or kind'
             });
         }
 
@@ -35,24 +38,36 @@ exports.createPayment = async (req, res) => {
 
         if (!booking) {
             return res.status(404).json({
+                success: false,
                 message: 'Booking not found'
             });
         }
 
         const payment = await payments.createPayment({
             booking_id,
-            amount: Number(amount),
+            amount: numericAmount,
             method,
             kind
         });
 
-        res.status(201).json({
+        // Deposits and payments confirm pending bookings.
+        if (
+            ['deposit', 'payment'].includes(kind) &&
+            booking.status === 'pending'
+        ) {
+            await transactions.updateBookingStatus(booking_id, 'confirmed');
+        }
+
+        return res.status(201).json({
+            success: true,
             message: 'Payment recorded successfully',
-            payment_id: payment.id
+            data: payment
         });
     } catch (error) {
         console.error('Create payment error:', error);
-        res.status(500).json({
+
+        return res.status(500).json({
+            success: false,
             message: 'Failed to record payment'
         });
     }
@@ -66,6 +81,7 @@ exports.getPayments = async (req, res) => {
 
         if (!booking) {
             return res.status(404).json({
+                success: false,
                 message: 'Booking not found'
             });
         }
@@ -74,11 +90,17 @@ exports.getPayments = async (req, res) => {
             req.params.bookingId
         );
 
-        res.json(paymentList);
+        return res.json({
+            success: true,
+            message: 'Payments retrieved successfully',
+            data: paymentList
+        });
     } catch (error) {
         console.error('Get payments error:', error);
-        res.status(500).json({
-            message: 'Failed to get payments'
+
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve payments'
         });
     }
 };

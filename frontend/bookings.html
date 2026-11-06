@@ -20,17 +20,15 @@
             <div class="row">
                 <div>
                     <label for="date">Date</label>
-                    <input type="date" id="date">
+                    <input type="date" id="date" required>
                 </div>
-
                 <div>
                     <label for="branch">Branch</label>
-                    <select id="branch"></select>
+                    <select id="branch" required></select>
                 </div>
-
                 <div>
                     <label for="service">Service</label>
-                    <select id="service"></select>
+                    <select id="service" required></select>
                 </div>
             </div>
 
@@ -43,13 +41,11 @@
 
             <form id="bookingForm" hidden>
                 <h2>Booking Details</h2>
-
                 <div class="row">
                     <div>
-                        <label for="customerId">Customer ID</label>
-                        <input id="customerId" type="number" min="1" required>
+                        <label for="customerId">Customer</label>
+                        <select id="customerId" required></select>
                     </div>
-
                     <div>
                         <label for="notes">Notes</label>
                         <input id="notes" type="text">
@@ -68,10 +64,51 @@
                 <button id="refreshBtn" type="button">Refresh Bookings</button>
             </p>
         </div>
+
+        <div class="card">
+            <h2>Record Payment</h2>
+            <div id="paymentMsg" class="msg"></div>
+
+            <form id="paymentForm">
+                <div class="row">
+                    <div>
+                        <label for="paymentBooking">Booking</label>
+                        <select id="paymentBooking" required></select>
+                    </div>
+                    <div>
+                        <label for="amount">Amount</label>
+                        <input id="amount" type="number" min="0.01" step="0.01" required>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div>
+                        <label for="method">Payment Method</label>
+                        <select id="method" required>
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="gcash">GCash</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="kind">Payment Kind</label>
+                        <select id="kind" required>
+                            <option value="deposit">Deposit</option>
+                            <option value="payment">Payment</option>
+                        </select>
+                    </div>
+                </div>
+
+                <p>
+                    <button id="paymentBtn" type="submit">Record Payment</button>
+                </p>
+            </form>
+        </div>
     </main>
 
     <script src="/js/api.js"></script>
     <script src="/js/nav.js"></script>
+
     <script>
         requireLogin();
         renderNav();
@@ -89,6 +126,14 @@
             })[char]);
         }
 
+        function formatError(error) {
+            const details = Array.isArray(error.errors)
+                ? error.errors.join('; ')
+                : '';
+
+            return error.message + (details ? ' - ' + details : '');
+        }
+
         function showMsg(message, type) {
             $('msg').textContent = message;
             $('msg').className = type ? 'msg ' + type : 'msg';
@@ -97,6 +142,11 @@
         function clearMsg() {
             $('msg').textContent = '';
             $('msg').className = 'msg';
+        }
+
+        function showPaymentMsg(message, type) {
+            $('paymentMsg').textContent = message;
+            $('paymentMsg').className = type ? 'msg ' + type : 'msg';
         }
 
         function setLoading(isLoading) {
@@ -108,10 +158,12 @@
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
+
             $('date').value = year + '-' + month + '-' + day;
             $('date').min = $('date').value;
         }
 
+        // LOAD BRANCHES, SERVICES, AND CUSTOMERS
         async function loadOptions() {
             setLoading(true);
             clearMsg();
@@ -119,6 +171,7 @@
             try {
                 const branches = await api('GET', '/branches');
                 const services = await api('GET', '/availability/services');
+                const customers = await api('GET', '/customers');
 
                 $('branch').innerHTML = branches.map((branch) =>
                     '<option value="' + branch.id + '">' +
@@ -131,16 +184,26 @@
                     escapeHtml(service.duration_min) + ' minutes)</option>'
                 ).join('');
 
+                $('customerId').innerHTML = customers.map((customer) =>
+                    '<option value="' + customer.id + '">' +
+                    escapeHtml(customer.full_name) + '</option>'
+                ).join('');
+
                 if (!branches.length || !services.length) {
-                    showMsg('No active branches or services found.');
+                    showMsg('No active branches or services found.', 'error');
+                }
+
+                if (!customers.length) {
+                    showMsg('No customers found. Add a customer first.', 'error');
                 }
             } catch (error) {
-                showMsg(error.message, 'error');
+                showMsg(formatError(error), 'error');
             } finally {
                 setLoading(false);
             }
         }
 
+        // FIND AVAILABLE SLOTS
         async function findSlots() {
             clearMsg();
             $('results').innerHTML = '';
@@ -152,7 +215,7 @@
             const serviceId = $('service').value;
 
             if (!date || !branchId || !serviceId) {
-                showMsg('Please select a date, branch, and service.');
+                showMsg('Please select a date, branch, and service.', 'error');
                 return;
             }
 
@@ -166,24 +229,25 @@
                     '&service_id=' + encodeURIComponent(serviceId)
                 );
 
-                if (!slots.length) {
+                if (!Array.isArray(slots) || !slots.length) {
                     $('results').textContent = 'No available slots found.';
                     return;
                 }
 
-                $('results').innerHTML = '<table><thead><tr>' +
-                    '<th>Therapist</th><th>Room</th><th>Start</th><th>End</th><th></th>' +
-                    '</tr></thead><tbody>' +
+                $('results').innerHTML =
+                    '<div style="overflow-x:auto;"><table>' +
+                    '<thead><tr><th>Therapist</th><th>Room</th>' +
+                    '<th>Start</th><th>End</th><th></th></tr></thead><tbody>' +
                     slots.map((slot, index) =>
                         '<tr>' +
                         '<td>' + escapeHtml(slot.therapist.full_name) + '</td>' +
                         '<td>' + escapeHtml(slot.room.name) + '</td>' +
                         '<td>' + escapeHtml(slot.start_at) + '</td>' +
                         '<td>' + escapeHtml(slot.end_at) + '</td>' +
-                        '<td><button type="button" data-slot="' + index + '">Select</button></td>' +
-                        '</tr>'
+                        '<td><button type="button" data-slot="' +
+                        index + '">Select</button></td></tr>'
                     ).join('') +
-                    '</tbody></table>';
+                    '</tbody></table></div>';
 
                 $('results').querySelectorAll('[data-slot]').forEach((button) => {
                     button.addEventListener('click', () => {
@@ -196,56 +260,72 @@
                     });
                 });
             } catch (error) {
-                showMsg(error.message, 'error');
+                showMsg(formatError(error), 'error');
             } finally {
                 setLoading(false);
             }
         }
 
+        // LOAD BOOKINGS
         async function loadBookings() {
             try {
                 const bookings = await api('GET', '/bookings');
 
-                if (!bookings.length) {
-                    $('bookingList').textContent = 'No bookings found.';
-                    return;
+                if (!Array.isArray(bookings)) {
+                    throw new Error('Invalid bookings response from server.');
                 }
 
-                $('bookingList').innerHTML = '<div style="overflow-x:auto;"><table>' +
-                    '<thead><tr><th>ID</th><th>Customer</th><th>Service</th>' +
-                    '<th>Therapist</th><th>Room</th><th>Start</th><th>Status</th>' +
-                    '</tr></thead><tbody>' +
-                    bookings.map((booking) =>
-                        '<tr><td>' + escapeHtml(booking.id) +
-                        '</td><td>' + escapeHtml(booking.customer_name) +
-                        '</td><td>' + escapeHtml(booking.service_name) +
-                        '</td><td>' + escapeHtml(booking.therapist_name) +
-                        '</td><td>' + escapeHtml(booking.room_name) +
-                        '</td><td>' + escapeHtml(booking.start_at) +
-                        '</td><td>' + escapeHtml(booking.status) + '</td></tr>'
-                    ).join('') +
-                    '</tbody></table></div>';
+                if (!bookings.length) {
+                    $('bookingList').textContent = 'No bookings found.';
+                } else {
+                    $('bookingList').innerHTML =
+                        '<div style="overflow-x:auto;"><table>' +
+                        '<thead><tr><th>ID</th><th>Customer</th><th>Service</th>' +
+                        '<th>Therapist</th><th>Room</th><th>Start</th>' +
+                        '<th>Status</th></tr></thead><tbody>' +
+                        bookings.map((booking) =>
+                            '<tr>' +
+                            '<td>' + escapeHtml(booking.id) + '</td>' +
+                            '<td>' + escapeHtml(booking.customer_name) + '</td>' +
+                            '<td>' + escapeHtml(booking.service_name) + '</td>' +
+                            '<td>' + escapeHtml(booking.therapist_name) + '</td>' +
+                            '<td>' + escapeHtml(booking.room_name) + '</td>' +
+                            '<td>' + escapeHtml(booking.start_at) + '</td>' +
+                            '<td>' + escapeHtml(booking.status) + '</td></tr>'
+                        ).join('') +
+                        '</tbody></table></div>';
+                }
+
+                $('paymentBooking').innerHTML = bookings.map((booking) =>
+                    '<option value="' + booking.id + '">' +
+                    'Booking #' + escapeHtml(booking.id) +
+                    ' - ' + escapeHtml(booking.customer_name) +
+                    ' - ' + escapeHtml(booking.service_name) + '</option>'
+                ).join('');
+
+                if (!bookings.length) {
+                    $('paymentBooking').innerHTML =
+                        '<option value="">No bookings available</option>';
+                }
             } catch (error) {
-                $('bookingList').textContent = error.message;
+                $('bookingList').textContent = formatError(error);
             }
         }
 
-        $('searchBtn').addEventListener('click', findSlots);
-        $('refreshBtn').addEventListener('click', loadBookings);
-
+        // CREATE BOOKING
         $('bookingForm').addEventListener('submit', async (event) => {
             event.preventDefault();
             clearMsg();
 
             if (!selectedSlot) {
-                showMsg('Select an available slot first.');
+                showMsg('Select an available slot first.', 'error');
                 return;
             }
 
             const customerId = Number($('customerId').value);
 
             if (!customerId || customerId < 1) {
-                showMsg('Enter a valid customer ID.');
+                showMsg('Please select a customer.', 'error');
                 return;
             }
 
@@ -261,8 +341,7 @@
             };
 
             try {
-                const result = await api('POST', '/bookings', booking);
-                showMsg(result.message || 'Booking created successfully.', 'success');
+                await api('POST', '/bookings', booking);
 
                 $('bookingForm').reset();
                 $('bookingForm').hidden = true;
@@ -270,12 +349,58 @@
 
                 await loadBookings();
                 await findSlots();
+
+                // Show success only after the reloads.
+                showMsg('Booking created successfully.', 'success');
             } catch (error) {
-                showMsg(error.message, 'error');
+                // Show the server message and any conflict reasons.
+                showMsg(formatError(error), 'error');
             } finally {
                 $('submitBtn').disabled = false;
             }
         });
+
+        // RECORD PAYMENT
+        $('paymentForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            showPaymentMsg('', '');
+
+            const bookingId = Number($('paymentBooking').value);
+            const amount = Number($('amount').value);
+            const method = $('method').value;
+            const kind = $('kind').value;
+
+            if (!bookingId) {
+                showPaymentMsg('Please select a booking.', 'error');
+                return;
+            }
+
+            if (!Number.isFinite(amount) || amount <= 0) {
+                showPaymentMsg('Amount must be greater than zero.', 'error');
+                return;
+            }
+
+            $('paymentBtn').disabled = true;
+
+            try {
+                await api('POST', '/payments', {
+                    booking_id: bookingId,
+                    amount,
+                    method,
+                    kind
+                });
+
+                $('paymentForm').reset();
+                showPaymentMsg('Payment recorded successfully.', 'success');
+            } catch (error) {
+                showPaymentMsg(formatError(error), 'error');
+            } finally {
+                $('paymentBtn').disabled = false;
+            }
+        });
+
+        $('searchBtn').addEventListener('click', findSlots);
+        $('refreshBtn').addEventListener('click', loadBookings);
 
         setToday();
         loadOptions();
