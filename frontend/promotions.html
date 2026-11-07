@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Promotions</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav id="nav"></nav>
+  <main>
+    <h1>Promotions</h1>
+    <div id="msg" class="msg"></div>
+    <p id="loading" class="loading">Loading...</p>
+
+    <div class="card" id="formCard" style="display:none">
+      <h2 id="formTitle">Add promotion</h2>
+      <div class="row">
+        <div><label for="code">Code</label><input id="code" required></div>
+        <div><label for="discount_percent">Discount (%)</label><input id="discount_percent" type="number" min="1" max="100" step="1" value="10"></div>
+        <div><label for="valid_from">Valid from</label><input id="valid_from" type="date"></div>
+        <div><label for="valid_until">Valid until</label><input id="valid_until" type="date"></div>
+        <div>
+          <label for="is_active">Status</label>
+          <select id="is_active">
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <p>
+        <button id="saveBtn">Save</button>
+        <button id="cancelBtn" class="secondary" style="display:none">Cancel edit</button>
+      </p>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>Code</th><th>Discount</th><th>Valid from</th><th>Valid until</th><th>Status</th><th id="actionsHead"></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/nav.js"></script>
+  <script>
+    requireLogin();
+    renderNav();
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const day = (d) => String(d ?? '').slice(0, 10); // keep only YYYY-MM-DD
+    const isAdmin = getUser()?.role === 'admin';
+    let editingId = null;
+    let byId = {};
+
+    // Only admins may create, update or delete (the routes return 403 for everyone else)
+    if (isAdmin) $('formCard').style.display = '';
+    else $('actionsHead').style.display = 'none';
+
+    async function load() {
+      setLoading(true);
+      try {
+        const promotions = await api('GET', '/promotions');
+        byId = Object.fromEntries(promotions.map((p) => [p.id, p]));
+        $('rows').innerHTML = promotions.length
+          ? promotions.map((p) => `<tr>
+              <td>${esc(p.code)}</td>
+              <td>${esc(p.discount_percent)}%</td>
+              <td>${esc(day(p.valid_from))}</td>
+              <td>${esc(day(p.valid_until))}</td>
+              <td>${p.is_active ? 'Active' : 'Inactive'}</td>
+              ${isAdmin ? `<td>
+                <button data-edit="${p.id}">Edit</button>
+                <button class="danger" data-del="${p.id}">Delete</button></td>` : ''}
+            </tr>`).join('')
+          : '<tr><td colspan="6">No promotions yet.</td></tr>';
+      } catch (e) {
+        showMsg(e.message, 'error', e.errors);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function resetForm() {
+      editingId = null;
+      $('formTitle').textContent = 'Add promotion';
+      $('code').value = '';
+      $('discount_percent').value = 10;
+      $('valid_from').value = '';
+      $('valid_until').value = '';
+      $('is_active').value = '1';
+      $('cancelBtn').style.display = 'none';
+    }
+
+    $('saveBtn').addEventListener('click', async () => {
+      clearMsg();
+      const body = {
+        code: $('code').value.trim(),
+        discount_percent: Number($('discount_percent').value),
+        valid_from: $('valid_from').value,
+        valid_until: $('valid_until').value,
+        is_active: Number($('is_active').value),
+      };
+      try {
+        await api(editingId ? 'PUT' : 'POST', editingId ? '/promotions/' + editingId : '/promotions', body);
+        const wasEdit = !!editingId;
+        resetForm();
+        await load();
+        showMsg(wasEdit ? 'Promotion updated' : 'Promotion created', 'success');
+      } catch (e) {
+        showMsg(e.message, 'error', e.errors);
+      }
+    });
+
+    $('cancelBtn').addEventListener('click', () => { resetForm(); clearMsg(); });
+
+    $('rows').addEventListener('click', async (ev) => {
+      const editId = ev.target.dataset.edit;
+      const delId = ev.target.dataset.del;
+      if (editId) {
+        const p = byId[editId];
+        editingId = p.id;
+        $('formTitle').textContent = 'Edit promotion #' + p.id;
+        $('code').value = p.code;
+        $('discount_percent').value = p.discount_percent;
+        $('valid_from').value = day(p.valid_from);
+        $('valid_until').value = day(p.valid_until);
+        $('is_active').value = p.is_active ? '1' : '0';
+        $('cancelBtn').style.display = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      if (delId && confirm('Delete this promotion?')) {
+        clearMsg();
+        try {
+          await api('DELETE', '/promotions/' + delId);
+          await load();
+          showMsg('Promotion deleted', 'success');
+        } catch (e) {
+          showMsg(e.message, 'error', e.errors);
+        }
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>
