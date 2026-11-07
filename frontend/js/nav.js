@@ -7,6 +7,7 @@ const PAGES = [
     ['bookings.html', 'Bookings'],
     ['availability.html', 'Availability'],
     ['alerts.html', 'Alerts & Audit'],
+    ['promotions.html', 'Promotions'],
     ['reports.html', 'Reports']
 ];
 
