@@ -1,4 +1,4 @@
-# SPA Booking System (SIA, Independent Track)
+# SPA Booking System (DBMS & SIA)
 
 A web system for booking spa treatments. A booking is only accepted if the therapist, the room and the working hours are all free, including the room cleaning time after each treatment.
 
