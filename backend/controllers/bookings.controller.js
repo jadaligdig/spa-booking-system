@@ -33,7 +33,9 @@ function calculateBookingTimes(startAt, durationMin, cleanupMin = 0) {
         end.getTime() + Math.max(0, Number(cleanupMin) || 0) * 60000
     );
 
-    return {
+        return {
+        start_at: formatDateTime(start),
+        end_at: formatDateTime(end),
         start_datetime: formatDateTime(start),
         end_datetime: formatDateTime(end),
         blocked_until: formatDateTime(blockedUntil)
